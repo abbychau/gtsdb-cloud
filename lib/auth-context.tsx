@@ -15,12 +15,15 @@ import {
   onIdTokenChanged,
   signInWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signOut as firebaseSignOut,
   createUserWithEmailAndPassword,
   updateProfile,
   type User as FirebaseUser,
 } from "firebase/auth";
 import { getFirebaseAuth } from "./firebase";
+import { maybeInitAnalytics } from "./firebase";
 import { isFirebaseConfigured } from "./firebase-config";
 import type { AuthUser } from "./types";
 
@@ -81,6 +84,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const auth = getFirebaseAuth();
 
     if (auth) {
+      // Best-effort analytics initialisation (never blocks auth).
+      maybeInitAnalytics();
+
+      // Handle the redirect-based Google sign-in result (used as a fallback
+      // when popups are blocked / unavailable).
+      getRedirectResult(auth)
+        .then((result) => {
+          if (result?.user) setUser(toAuthUser(result.user));
+        })
+        .catch(() => undefined);
+
       const unsub1 = onAuthStateChanged(auth, (fbUser) => {
         setUser(fbUser ? toAuthUser(fbUser) : null);
         if (!fbUser) setIdToken(null);
@@ -154,10 +168,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const auth = getFirebaseAuth();
     if (!auth) throw new Error("Firebase is not configured.");
     const provider = new GoogleAuthProvider();
-    const cred = await signInWithPopup(auth, provider);
-    const u = toAuthUser(cred.user);
-    setUser(u);
-    return u;
+    try {
+      const cred = await signInWithPopup(auth, provider);
+      const u = toAuthUser(cred.user);
+      setUser(u);
+      return u;
+    } catch (err) {
+      const code =
+        err && typeof err === "object" && "code" in err
+          ? String((err as { code: string }).code)
+          : "";
+      // Fall back to the redirect flow when popups are blocked/unavailable.
+      // After returning from Google the user is restored via getRedirectResult.
+      if (
+        code === "auth/popup-blocked" ||
+        code === "auth/cancelled-popup-request" ||
+        code === "auth/popup-closed-by-user" ||
+        code === "auth/operation-not-allowed"
+      ) {
+        await signInWithRedirect(auth, provider);
+        return {
+          uid: "",
+          email: null,
+          displayName: null,
+          photoURL: null,
+          provider: "firebase",
+        };
+      }
+      throw err;
+    }
   }, []);
 
   const signOut = useCallback(async (): Promise<void> => {

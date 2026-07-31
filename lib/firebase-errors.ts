@@ -20,6 +20,10 @@ export function friendlyFirebaseError(err: unknown): string {
       return "Too many attempts. Please try again in a moment.";
     case "auth/popup-closed-by-user":
       return "Sign-in popup was closed before completing.";
+    case "auth/popup-blocked":
+      return "Sign-in popup was blocked by the browser. Allow popups for this site, or we'll use the redirect flow instead.";
+    case "auth/cancelled-popup-request":
+      return "Sign-in was cancelled. Please try again.";
     case "auth/unauthorized-domain":
       return "This domain is not authorized in your Firebase project.";
     case "auth/operation-not-allowed":

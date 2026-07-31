@@ -6,6 +6,7 @@
 
 import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth } from "firebase/auth";
+import { getAnalytics, isSupported } from "firebase/analytics";
 import { firebaseConfig, isFirebaseConfigured } from "./firebase-config";
 
 let authInstance: Auth | null = null;
@@ -27,4 +28,20 @@ export function getFirebaseAuth(): Auth | null {
     authInstance = getAuth(app);
   }
   return authInstance;
+}
+
+/**
+ * Safely initialise Firebase Analytics on the client. No-op in SSR, when
+ * analytics is unsupported (e.g. some webviews), or when unconfigured.
+ */
+export async function maybeInitAnalytics(): Promise<void> {
+  if (typeof window === "undefined") return;
+  if (!isFirebaseConfigured()) return;
+  try {
+    if (!(await isSupported())) return;
+    const app = getFirebaseApp();
+    if (app) getAnalytics(app);
+  } catch {
+    // Analytics is best-effort — never break auth over it.
+  }
 }
