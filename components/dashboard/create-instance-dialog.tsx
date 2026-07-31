@@ -56,10 +56,6 @@ export function CreateInstanceDialog({
 
   const [name, setName] = React.useState("");
   const [region, setRegion] = React.useState<InstanceRegion>("auto");
-  const [endpoint, setEndpoint] = React.useState(
-    process.env.NEXT_PUBLIC_DEFAULT_GTSDB_ENDPOINT || "http://localhost:5556"
-  );
-  const [token, setToken] = React.useState("");
   const [simulate, setSimulate] = React.useState(true);
 
   const planDef = getPlan(plan);
@@ -70,15 +66,12 @@ export function CreateInstanceDialog({
     setError(null);
     setBusy(true);
     try {
-      const inst = await createInstance(
-        { name, region, endpoint, token: token.trim(), simulate },
-        authToken || ""
-      );
-      toast.success(`Instance "${inst.name}" created`);
+      const inst = await createInstance({ name, region, simulate }, authToken || "");
+      toast.success(`Instance "${inst.name}" created`, {
+        description: `Connection: ${inst.connectionString}`,
+      });
       setOpen(false);
       setName("");
-      setToken("");
-      setEndpoint("http://localhost:5556");
       onCreated(inst);
     } catch (err) {
       if (err instanceof ApiError) setError(err.message);
@@ -100,8 +93,8 @@ export function CreateInstanceDialog({
         <DialogHeader>
           <DialogTitle>Create a new instance</DialogTitle>
           <DialogDescription>
-            Provision a managed GTSDB instance. You can connect it to your own
-            server or use the built-in simulator.
+            The platform auto-generates a connection string and credential —
+            nothing to configure. Sandbox simulation is enabled by default.
           </DialogDescription>
         </DialogHeader>
 
@@ -142,31 +135,6 @@ export function CreateInstanceDialog({
                 ))}
               </SelectContent>
             </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="endpoint">GTSDB endpoint (optional)</Label>
-            <Input
-              id="endpoint"
-              placeholder="http://localhost:5556"
-              value={endpoint}
-              onChange={(e) => setEndpoint(e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">
-              The HTTP address of your GTSDB server. Leave the default to use the
-              simulator sandbox.
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="token">Connection token (optional)</Label>
-            <Input
-              id="token"
-              type="password"
-              placeholder="gtsb_••••••••"
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-            />
           </div>
 
           <div className="flex items-center justify-between rounded-lg border p-3">

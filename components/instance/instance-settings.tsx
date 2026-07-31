@@ -57,28 +57,17 @@ export function InstanceSettings({
 
   const [name, setName] = React.useState(instance.name);
   const [region, setRegion] = React.useState<InstanceRegion>(instance.region);
-  const [endpoint, setEndpoint] = React.useState(instance.endpoint);
-  const [connToken, setConnToken] = React.useState(instance.token);
   const [simulate, setSimulate] = React.useState(instance.simulate);
   const [saving, setSaving] = React.useState(false);
   const [deleting, setDeleting] = React.useState(false);
 
   const plan = getPlan(instance.plan);
-  const dirty =
-    name !== instance.name ||
-    region !== instance.region ||
-    endpoint !== instance.endpoint ||
-    connToken !== instance.token ||
-    simulate !== instance.simulate;
+  const dirty = name !== instance.name || region !== instance.region || simulate !== instance.simulate;
 
   async function handleSave() {
     setSaving(true);
     try {
-      const updated = await updateInstance(
-        instance.id,
-        { name, region, endpoint, token: connToken, simulate },
-        token
-      );
+      const updated = await updateInstance(instance.id, { name, region, simulate }, token);
       toast.success("Instance settings saved");
       onChanged(updated);
     } catch (err) {
@@ -106,7 +95,12 @@ export function InstanceSettings({
         <CardHeader>
           <CardTitle className="text-sm">General</CardTitle>
           <CardDescription>
-            Update how this instance connects to GTSDB.
+            Name, region and sandbox behaviour. Connection strings and
+            credentials live on the{" "}
+            <a href="#connection" className="text-primary underline underline-offset-2">
+              Connection
+            </a>{" "}
+            tab.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -137,43 +131,13 @@ export function InstanceSettings({
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="endpoint">GTSDB endpoint</Label>
-            <Input
-              id="endpoint"
-              value={endpoint}
-              onChange={(e) => setEndpoint(e.target.value)}
-              placeholder="http://localhost:5556"
-              className="font-mono text-xs"
-            />
-            <p className="text-xs text-muted-foreground">
-              The HTTP address of your GTSDB server.
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="token">Connection token</Label>
-            <Input
-              id="token"
-              type="password"
-              value={connToken}
-              onChange={(e) => setConnToken(e.target.value)}
-              placeholder="gtsb_••••••••"
-              className="font-mono text-xs"
-            />
-            <p className="text-xs text-muted-foreground">
-              Stored server-side. Used by the platform to authenticate requests
-              to your GTSDB server.
-            </p>
-          </div>
-
           <div className="flex items-center justify-between rounded-lg border p-3">
             <div>
               <Label htmlFor="simulate" className="text-sm font-medium">
                 Sandbox simulation
               </Label>
               <p className="text-xs text-muted-foreground">
-                Serve demo data when the endpoint is unreachable.
+                Serve demo data when the backend is unreachable.
               </p>
             </div>
             <Switch id="simulate" checked={simulate} onCheckedChange={setSimulate} />

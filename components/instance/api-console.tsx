@@ -41,7 +41,7 @@ function Snippet({ code }: { code: string }) {
 }
 
 export function ApiConsole({ instance }: { instance: PlatformInstance }) {
-  const endpoint = instance.endpoint || "http://localhost:5556";
+  const endpoint = instance.connectionString || `https://${instance.slug}.gtsdb.cloud`;
   const token = instance.token || "<your-token>";
 
   const snippets: Record<string, { write: string; read: string; subscribe: string }> = {
@@ -212,11 +212,12 @@ func main() {
             </div>
           </div>
           <p className="text-xs text-muted-foreground">
-            Add your GTSDB connection token in{" "}
-            <a href="#settings" className="text-primary underline underline-offset-2">
-              Settings
+            This is your auto-generated connection endpoint and credential. Rotate
+            or revoke the token anytime from the{" "}
+            <a href="#connection" className="text-primary underline underline-offset-2">
+              Connection
             </a>{" "}
-            so the platform can talk to your server on your behalf.
+            tab.
           </p>
         </CardContent>
       </Card>

@@ -3,7 +3,8 @@ import { requireUser, handle, HttpError } from "@/lib/route-utils";
 import { getInstance, touchInstance } from "@/lib/store";
 import { callGtsdb } from "@/lib/gtsdb-server";
 import { simulateOperation } from "@/lib/simulate";
-import type { GtsdbResponse } from "@/lib/types";
+import { getPlan } from "@/lib/plans";
+import type { GtsdbResponse, PlatformInstance } from "@/lib/types";
 
 export const runtime = "nodejs";
 
@@ -19,6 +20,47 @@ const WRITE_OPS = new Set([
   "deleteDataPoint",
   "flush",
 ]);
+
+interface IncomingImpact {
+  points: number;
+  newKeys: number;
+}
+
+/** Estimate how much a request grows the instance (points written / keys created). */
+function incomingImpact(body: Record<string, unknown>): IncomingImpact {
+  const op = String(body.operation || "").toLowerCase();
+  switch (op) {
+    case "write":
+      return { points: 1, newKeys: 0 };
+    case "batch-write": {
+      const pts = Array.isArray(body.points) ? (body.points as Array<{ key?: string }>) : [];
+      return { points: pts.length, newKeys: 0 };
+    }
+    case "data-patch": {
+      const lines = String(body.data || "")
+        .trim()
+        .split(/\r?\n/)
+        .filter((l) => l.trim());
+      return { points: lines.length, newKeys: 0 };
+    }
+    case "initkey":
+      return { points: 0, newKeys: 1 };
+    default:
+      return { points: 0, newKeys: 0 };
+  }
+}
+
+/** Reject a request that would exceed the instance's plan quota. */
+function quotaViolation(inst: PlatformInstance, impact: IncomingImpact): string | null {
+  const plan = getPlan(inst.plan);
+  if (impact.points > 0 && inst.usage.points + impact.points > plan.maxPoints) {
+    return `Data point quota exceeded for the ${plan.name} plan (${plan.maxPoints.toLocaleString()} pts/mo). Upgrade to keep writing.`;
+  }
+  if (impact.newKeys > 0 && inst.usage.keys + impact.newKeys > plan.maxKeysPerInstance) {
+    return `Series quota exceeded for the ${plan.name} plan (${plan.maxKeysPerInstance} keys). Delete a key or upgrade.`;
+  }
+  return null;
+}
 
 export const POST = handle(
   async (req: NextRequest, { params }: { params: { id: string } }) => {
@@ -36,6 +78,16 @@ export const POST = handle(
       .toLowerCase();
     const isWrite = WRITE_OPS.has(operationName);
 
+    // Enforce the freemium quota before anything is written.
+    const impact = incomingImpact(body as Record<string, unknown>);
+    const violation = quotaViolation(inst, impact);
+    if (violation) {
+      return NextResponse.json(
+        { success: false, message: violation },
+        { status: 402 }
+      );
+    }
+
     // 1. Try the live GTSDB endpoint first.
     if (inst.endpoint) {
       const result = await callGtsdb(inst.endpoint, inst.token, body);
@@ -43,7 +95,9 @@ export const POST = handle(
         const gtsdb = result.data as GtsdbResponse;
         await touchInstance(
           inst.id,
-          isWrite ? { writes: 1 } : { reads: 1 },
+          isWrite
+            ? { writes: 1, points: impact.points, keys: impact.newKeys }
+            : { reads: 1 },
           "active"
         );
         return NextResponse.json(gtsdb);
@@ -54,7 +108,7 @@ export const POST = handle(
           {
             success: false,
             message:
-              "GTSDB rejected the instance token (401 Unauthorized). Check the token in Settings.",
+              "GTSDB rejected the connection credential (401 Unauthorized). Check the credential in the Connection tab.",
           },
           { status: 502 }
         );
@@ -64,7 +118,12 @@ export const POST = handle(
     // 2. Fall back to the built-in simulator when enabled.
     if (inst.simulate) {
       const simulated = simulateOperation(inst.id, body);
-      await touchInstance(inst.id, isWrite ? { writes: 1 } : { reads: 1 });
+      await touchInstance(
+        inst.id,
+        isWrite
+          ? { writes: 1, points: impact.points, keys: impact.newKeys }
+          : { reads: 1 }
+      );
       return NextResponse.json(simulated);
     }
 

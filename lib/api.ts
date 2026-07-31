@@ -98,6 +98,26 @@ export async function deleteInstance(id: string, token: string): Promise<void> {
   }).then(() => undefined);
 }
 
+export async function regenerateInstanceToken(
+  id: string,
+  token: string
+): Promise<PlatformInstance> {
+  return request<PlatformInstance>(`/api/instances/${id}/token`, {
+    method: "POST",
+    token,
+  });
+}
+
+export async function revokeInstanceToken(
+  id: string,
+  token: string
+): Promise<PlatformInstance> {
+  return request<PlatformInstance>(`/api/instances/${id}/token`, {
+    method: "DELETE",
+    token,
+  });
+}
+
 export async function getInstanceUsage(
   id: string,
   token: string

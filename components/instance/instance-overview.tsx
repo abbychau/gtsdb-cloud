@@ -108,7 +108,8 @@ export function InstanceOverview({
               <PlanBadge plan={instance.plan} />
               {instance.simulate && <Badge variant="secondary">sandbox</Badge>}
             </div>
-            <InfoRow label="Endpoint" value={instance.endpoint || "(none)"} />
+            <InfoRow label="Connection string" value={instance.connectionString} />
+            <InfoRow label="Backend" value={instance.endpoint || "sandbox"} />
             <InfoRow label="Region" value={instance.region} />
             <InfoRow
               label="Last active"

@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { requireUser, handle, HttpError } from "@/lib/route-utils";
 import { getInstance, touchInstance } from "@/lib/store";
 import { callGtsdb, checkHealth } from "@/lib/gtsdb-server";
+import { simulateOperation } from "@/lib/simulate";
 import {
   readKeyCounts,
   readKeys,
@@ -44,6 +45,25 @@ export const GET = handle(
         usage,
         serverInfo: serverInfo ?? inst.serverInfo ?? null,
         status: "active",
+      });
+    }
+
+    // Live server unreachable — reconcile from the sandbox simulator when enabled
+    // so usage + quota stay accurate even without a connected backend.
+    if (inst.simulate) {
+      const counts = readKeyCounts(
+        simulateOperation(inst.id, { operation: "idswithcount" }) as GtsdbResponse
+      );
+      const usage = {
+        ...inst.usage,
+        keys: counts.length,
+        points: counts.reduce((sum, c) => sum + c.count, 0),
+      };
+      await touchInstance(inst.id, {});
+      return NextResponse.json({
+        usage,
+        serverInfo: inst.serverInfo ?? null,
+        status: inst.status,
       });
     }
 

@@ -94,12 +94,16 @@ export interface PlatformInstance {
   id: string;
   ownerUid: string;
   name: string;
+  /** URL-safe slug derived from the name (used in the auto-generated connection string). */
+  slug: string;
+  /** Auto-generated public connection string, e.g. https://<slug>.gtsdb.cloud */
+  connectionString: string;
   region: InstanceRegion;
   plan: PlanId;
   status: InstanceStatus;
-  /** HTTP endpoint of the underlying GTSDB server, e.g. http://localhost:5556 */
+  /** Internal backend the platform forwards requests to (advanced / self-hosted). */
   endpoint: string;
-  /** GTSDB auth token used by the platform to talk to the server. */
+  /** Auto-generated connection credential managed separately from the instance. */
   token: string;
   /** When true, the proxy falls back to simulated data if the server is unreachable. */
   simulate: boolean;
@@ -117,8 +121,6 @@ export interface CreateInstanceInput {
   name: string;
   region?: InstanceRegion;
   plan?: PlanId;
-  endpoint?: string;
-  token?: string;
   simulate?: boolean;
 }
 
@@ -127,7 +129,6 @@ export interface UpdateInstanceInput {
   region?: InstanceRegion;
   plan?: PlanId;
   endpoint?: string;
-  token?: string;
   simulate?: boolean;
   status?: InstanceStatus;
 }

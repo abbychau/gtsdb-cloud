@@ -7,6 +7,7 @@
 
 import { promises as fs } from "fs";
 import path from "path";
+import { buildConnectionString, slugify } from "./utils";
 import type {
   InstanceStatus,
   PlatformInstance,
@@ -36,6 +37,13 @@ async function load(): Promise<StoreShape> {
     };
   } catch {
     cache = { users: {}, instances: {} };
+  }
+  // Backfill instances created before slug/connectionString existed.
+  for (const inst of Object.values(cache.instances)) {
+    if (!inst.slug) inst.slug = `${slugify(inst.name)}-${inst.id.slice(-4)}`;
+    if (!inst.connectionString) inst.connectionString = buildConnectionString(inst.slug);
+    if (inst.usage?.keys === undefined) inst.usage.keys = 0;
+    if (inst.usage?.points === undefined) inst.usage.points = 0;
   }
   return cache;
 }
@@ -117,6 +125,11 @@ export async function listInstances(uid: string): Promise<PlatformInstance[]> {
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
+export async function listAllInstances(): Promise<PlatformInstance[]> {
+  const store = await load();
+  return Object.values(store.instances);
+}
+
 export async function getInstance(
   id: string
 ): Promise<PlatformInstance | null> {
@@ -161,7 +174,7 @@ export async function deleteInstance(id: string): Promise<void> {
 
 export async function touchInstance(
   id: string,
-  usage?: { reads?: number; writes?: number },
+  usage?: { reads?: number; writes?: number; points?: number; keys?: number },
   status?: InstanceStatus,
   serverInfo?: ServerInfo | null
 ): Promise<PlatformInstance> {
@@ -172,6 +185,8 @@ export async function touchInstance(
     inst.lastActiveAt = new Date().toISOString();
     if (usage?.reads) inst.usage.reads += usage.reads;
     if (usage?.writes) inst.usage.writes += usage.writes;
+    if (usage?.points) inst.usage.points += usage.points;
+    if (usage?.keys) inst.usage.keys += usage.keys;
     if (status) inst.status = status;
     if (serverInfo !== undefined) inst.serverInfo = serverInfo;
     if (status === "active") inst.lastHealthyAt = new Date().toISOString();

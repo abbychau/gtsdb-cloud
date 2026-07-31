@@ -3,10 +3,17 @@ import { requireUser, handle, HttpError } from "@/lib/route-utils";
 import {
   createInstance,
   getUser,
+  listAllInstances,
   listInstances,
 } from "@/lib/store";
 import { canCreateInstance, getPlan } from "@/lib/plans";
 import { checkHealth } from "@/lib/gtsdb-server";
+import {
+  buildConnectionString,
+  generateConnectionToken,
+  slugify,
+  uniqueSlug,
+} from "@/lib/utils";
 import type {
   CreateInstanceInput,
   InstanceRegion,
@@ -67,8 +74,6 @@ export const POST = handle(async (req: NextRequest) => {
   const region: InstanceRegion = body.region && REGIONS.includes(body.region)
     ? body.region
     : "auto";
-  const endpoint = (body.endpoint || defaultEndpoint()).trim();
-  const token = (body.token || "").trim();
   const simulate = body.simulate !== false;
 
   const id = `ins_${Math.random().toString(36).slice(2, 10)}${Math.random()
@@ -76,12 +81,22 @@ export const POST = handle(async (req: NextRequest) => {
     .slice(2, 4)}`;
   const now = new Date().toISOString();
 
+  // Auto-provision: a unique slug, a public connection string, and a connection
+  // credential are generated for the user. The platform routes to the sandbox
+  // (or the configured backend) on their behalf — no endpoint to configure.
+  const slug = uniqueSlug(slugify(name), (await listAllInstances()).map((i) => i.slug));
+  const connectionString = buildConnectionString(slug);
+  const endpoint = defaultEndpoint();
+  const token = generateConnectionToken();
+
   const healthy = await checkHealth(endpoint);
 
   const instance: PlatformInstance = {
     id,
     ownerUid: user.uid,
     name,
+    slug,
+    connectionString,
     region,
     plan,
     status: healthy ? "active" : simulate ? "provisioning" : "offline",

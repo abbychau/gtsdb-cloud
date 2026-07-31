@@ -9,6 +9,7 @@ import {
   Code2,
   KeyRound,
   LayoutDashboard,
+  Network,
   Settings2,
   Loader2,
 } from "lucide-react";
@@ -23,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { DataExplorer } from "@/components/instance/data-explorer";
 import { InstanceOverview } from "@/components/instance/instance-overview";
 import { ApiConsole } from "@/components/instance/api-console";
+import { ConnectionPanel } from "@/components/instance/connection-panel";
 import { KeysManager } from "@/components/instance/keys-manager";
 import { InstanceSettings } from "@/components/instance/instance-settings";
 import { EmptyState } from "@/components/dashboard/empty-state";
@@ -31,6 +33,7 @@ const TAB_HASHES: Record<string, string> = {
   overview: "#overview",
   explorer: "#explorer",
   console: "#console",
+  connection: "#connection",
   keys: "#keys",
   settings: "#settings",
 };
@@ -116,9 +119,7 @@ export default function InstanceDetailPage() {
               <span className="font-mono text-xs">{instance.id}</span>
               <PlanBadge plan={instance.plan} />
               {instance.simulate && <Badge variant="secondary">sandbox</Badge>}
-              <span className="font-mono text-xs">
-                {instance.endpoint || "(no endpoint)"}
-              </span>
+              <span className="font-mono text-xs">{instance.connectionString}</span>
             </div>
           </div>
           <Button variant="outline" size="sm" onClick={refresh}>
@@ -128,7 +129,7 @@ export default function InstanceDetailPage() {
       </div>
 
       <Tabs value={tab} onValueChange={changeTab}>
-        <TabsList className="grid w-full max-w-2xl grid-cols-2 sm:grid-cols-5">
+        <TabsList className="grid w-full max-w-3xl grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
           <TabsTrigger value="overview" className="gap-1.5">
             <LayoutDashboard className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Overview</span>
@@ -140,6 +141,10 @@ export default function InstanceDetailPage() {
           <TabsTrigger value="console" className="gap-1.5">
             <Code2 className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Console</span>
+          </TabsTrigger>
+          <TabsTrigger value="connection" className="gap-1.5">
+            <Network className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Connection</span>
           </TabsTrigger>
           <TabsTrigger value="keys" className="gap-1.5">
             <KeyRound className="h-3.5 w-3.5" />
@@ -166,6 +171,15 @@ export default function InstanceDetailPage() {
           </TabsContent>
           <TabsContent value="console" className="space-y-4">
             <ApiConsole instance={instance} />
+          </TabsContent>
+          <TabsContent value="connection" className="space-y-4">
+            <ConnectionPanel
+              instance={instance}
+              onChanged={(updated) => {
+                updateLocal(updated);
+                refresh();
+              }}
+            />
           </TabsContent>
           <TabsContent value="keys" className="space-y-4">
             <KeysManager instance={instance} />

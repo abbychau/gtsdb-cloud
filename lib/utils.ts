@@ -62,3 +62,33 @@ export function truncate(str: string, max: number): string {
   if (!str) return "";
   return str.length > max ? str.slice(0, max - 1) + "…" : str;
 }
+
+/** Turn a name into a URL-safe slug: "Prod Sensors" -> "prod-sensors" */
+export function slugify(name: string): string {
+  const base = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 32);
+  return base || "instance";
+}
+
+/** Generate a random connection credential, e.g. gtsb_AbC123... */
+export function generateConnectionToken(): string {
+  const rand = () => Math.random().toString(36).slice(2);
+  return `gtsb_${rand()}${rand()}`;
+}
+
+/** Build the public connection string for an instance slug. */
+export function buildConnectionString(slug: string): string {
+  return `https://${slug}.gtsdb.cloud`;
+}
+
+/** Make a slug unique against a set of existing slugs (e.g. "cpu", "cpu-2"). */
+export function uniqueSlug(base: string, existingSlugs: string[]): string {
+  const used = new Set(existingSlugs);
+  if (!used.has(base)) return base;
+  let n = 2;
+  while (used.has(`${base}-${n}`)) n++;
+  return `${base}-${n}`;
+}
