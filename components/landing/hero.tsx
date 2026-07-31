@@ -27,7 +27,7 @@ export function Hero() {
           </Badge>
           <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl lg:text-6xl">
             Timeseries that just{" "}
-            <span className="bg-gradient-to-r from-primary to-cyan-500 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-foreground to-foreground/50 bg-clip-text text-transparent">
               works
             </span>
             .

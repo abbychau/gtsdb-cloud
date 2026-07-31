@@ -66,11 +66,11 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 
 const COLORS = [
-  "hsl(221, 83%, 53%)",
-  "hsl(170, 75%, 41%)",
-  "hsl(262, 83%, 58%)",
-  "hsl(24, 95%, 53%)",
-  "hsl(350, 89%, 60%)",
+  "hsl(240 5.9% 10%)",
+  "hsl(220 20% 45%)",
+  "hsl(0 0% 35%)",
+  "hsl(260 20% 45%)",
+  "hsl(200 25% 45%)",
 ];
 
 function epochToLocalInput(ts: number): string {
