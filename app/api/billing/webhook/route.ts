@@ -35,8 +35,12 @@ export async function POST(req: NextRequest) {
       const uid = session.metadata?.uid;
       const plan = session.metadata?.plan as PlanId | undefined;
       if (uid && plan) {
-        if (session.customer) await setUserStripeCustomer(uid, String(session.customer));
-        await setUserPlan(uid, plan);
+        if (session.customer)
+          await setUserStripeCustomer(uid, String(session.customer)).catch(() => undefined);
+        // Unknown/deleted platform user must not make Stripe retry forever.
+        await setUserPlan(uid, plan).catch((e) =>
+          console.warn(`[stripe] setUserPlan failed (uid=${uid}):`, e.message)
+        );
         // Best-effort engine quota sync (no-op if GTSDB is down).
         await syncUserQuotas(uid, plan).catch(() => undefined);
       }
@@ -46,7 +50,9 @@ export async function POST(req: NextRequest) {
       const sub = event.data.object as Stripe.Subscription;
       const uid = sub.metadata?.uid ?? (await lookupUidFromCustomer(String(sub.customer)));
       if (uid) {
-        await setUserPlan(uid, "free");
+        await setUserPlan(uid, "free").catch((e) =>
+          console.warn(`[stripe] setUserPlan(free) failed (uid=${uid}):`, e.message)
+        );
         await syncUserQuotas(uid, "free").catch(() => undefined);
       }
       break;
