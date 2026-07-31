@@ -41,7 +41,7 @@ function Snippet({ code }: { code: string }) {
 }
 
 export function ApiConsole({ instance }: { instance: PlatformInstance }) {
-  const endpoint = instance.connectionString || `https://${instance.slug}.gtsdb.cloud`;
+  const endpoint = instance.connectionString || "https://gtsdb-http-5556.abby.md";
   const token = instance.token || "<your-token>";
 
   const snippets: Record<string, { write: string; read: string; subscribe: string }> = {

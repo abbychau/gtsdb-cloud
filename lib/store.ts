@@ -7,7 +7,8 @@
 
 import { promises as fs } from "fs";
 import path from "path";
-import { buildConnectionString, slugify } from "./utils";
+import { slugify } from "./utils";
+import { getPublicHttpUrl, getPublicTcpUrl } from "./gtsdb-config";
 import type {
   InstanceStatus,
   PlatformInstance,
@@ -41,7 +42,9 @@ async function load(): Promise<StoreShape> {
   // Backfill instances created before slug/connectionString existed.
   for (const inst of Object.values(cache.instances)) {
     if (!inst.slug) inst.slug = `${slugify(inst.name)}-${inst.id.slice(-4)}`;
-    if (!inst.connectionString) inst.connectionString = buildConnectionString(inst.slug);
+    if (!inst.connectionString) inst.connectionString = getPublicHttpUrl();
+    if (!inst.tcpConnectionString) inst.tcpConnectionString = getPublicTcpUrl();
+    if (!inst.namespace) inst.namespace = "";
     if (inst.usage?.keys === undefined) inst.usage.keys = 0;
     if (inst.usage?.points === undefined) inst.usage.points = 0;
     // A sandbox instance is always live — never leave it stuck offline.

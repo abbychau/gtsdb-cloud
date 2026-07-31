@@ -7,7 +7,7 @@ import {
   updateInstance,
 } from "@/lib/store";
 import { checkHealth } from "@/lib/gtsdb-server";
-import { buildConnectionString, slugify, uniqueSlug } from "@/lib/utils";
+import { slugify, uniqueSlug } from "@/lib/utils";
 import type { UpdateInstanceInput } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -39,9 +39,7 @@ export const PATCH = handle(async (req: NextRequest, { params }: { params: { id:
       throw new HttpError(400, "Name must be 2-40 characters");
     }
     patch.name = name;
-    // Renaming also regenerates the public slug + connection string.
     patch.slug = uniqueSlug(slugify(name), (await listAllInstances()).map((i) => i.slug));
-    patch.connectionString = buildConnectionString(patch.slug);
   }
   if (body.region !== undefined) patch.region = body.region;
   if (body.endpoint !== undefined) {

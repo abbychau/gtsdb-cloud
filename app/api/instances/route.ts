@@ -7,13 +7,13 @@ import {
   listInstances,
 } from "@/lib/store";
 import { canCreateInstance, getPlan } from "@/lib/plans";
-import { checkHealth } from "@/lib/gtsdb-server";
+import { checkHealth, provisionGtsdbUser } from "@/lib/gtsdb-server";
 import {
-  buildConnectionString,
-  generateConnectionToken,
-  slugify,
-  uniqueSlug,
-} from "@/lib/utils";
+  getGtsdbBase,
+  getPublicHttpUrl,
+  getPublicTcpUrl,
+} from "@/lib/gtsdb-config";
+import { generateConnectionToken, slugify, uniqueSlug } from "@/lib/utils";
 import type {
   CreateInstanceInput,
   InstanceRegion,
@@ -33,10 +33,6 @@ const REGIONS: InstanceRegion[] = [
 ];
 
 const NAME_RE = /^[\w\s\-.]{2,40}$/;
-
-function defaultEndpoint(): string {
-  return process.env.DEFAULT_GTSDB_ENDPOINT || "http://localhost:5556";
-}
 
 export const GET = handle(async (req: NextRequest) => {
   const user = await requireUser(req);
@@ -81,33 +77,37 @@ export const POST = handle(async (req: NextRequest) => {
     .slice(2, 4)}`;
   const now = new Date().toISOString();
 
-  // Auto-provision: a unique slug, a public connection string, and a connection
-  // credential are generated for the user. The platform routes to the sandbox
-  // (or the configured backend) on their behalf — no endpoint to configure.
   const slug = uniqueSlug(slugify(name), (await listAllInstances()).map((i) => i.slug));
-  const connectionString = buildConnectionString(slug);
-  const endpoint = defaultEndpoint();
-  const token = generateConnectionToken();
 
-  const healthy = await checkHealth(endpoint);
+  // Provision a real tenant namespace on the shared, multi-tenant GTSDB server.
+  // Each instance = one GTSDB user; its token scopes every request to that
+  // namespace (isolation is enforced server-side by GTSDB).
+  const endpoint = getGtsdbBase();
+  const connectionString = getPublicHttpUrl();
+  const tcpConnectionString = getPublicTcpUrl();
+  const provision = await provisionGtsdbUser(id);
+  const token = provision.ok ? provision.token : generateConnectionToken();
+  const healthy = provision.ok || (await checkHealth(endpoint));
+  const status = provision.ok || healthy || simulate ? "active" : "offline";
 
   const instance: PlatformInstance = {
     id,
     ownerUid: user.uid,
     name,
     slug,
-    connectionString,
     region,
     plan,
-    // Sandbox instances are live immediately; otherwise require a healthy backend.
-    status: healthy || simulate ? "active" : "offline",
+    status,
     endpoint,
+    namespace: id,
     token,
+    connectionString,
+    tcpConnectionString,
     simulate,
     createdAt: now,
     updatedAt: now,
     lastActiveAt: now,
-    lastHealthyAt: healthy || simulate ? now : null,
+    lastHealthyAt: status === "active" ? now : null,
     serverInfo: null,
     usage: { points: 0, keys: 0, reads: 0, writes: 0 },
   };

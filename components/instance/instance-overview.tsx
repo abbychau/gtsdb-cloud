@@ -109,7 +109,7 @@ export function InstanceOverview({
               {instance.simulate && <Badge variant="secondary">sandbox</Badge>}
             </div>
             <InfoRow label="Connection string" value={instance.connectionString} />
-            <InfoRow label="Backend" value={instance.endpoint || "sandbox"} />
+            <InfoRow label="Managed server" value={instance.endpoint || "sandbox"} />
             <InfoRow label="Region" value={instance.region} />
             <InfoRow
               label="Last active"

@@ -96,14 +96,18 @@ export interface PlatformInstance {
   name: string;
   /** URL-safe slug derived from the name (used in the auto-generated connection string). */
   slug: string;
-  /** Auto-generated public connection string, e.g. https://<slug>.gtsdb.cloud */
+  /** Public HTTPS connection string for the managed server. */
   connectionString: string;
+  /** Public TCP connection string for the managed server. */
+  tcpConnectionString: string;
   region: InstanceRegion;
   plan: PlanId;
   status: InstanceStatus;
-  /** Internal backend the platform forwards requests to (advanced / self-hosted). */
+  /** Internal address of the shared GTSDB server the platform forwards to. */
   endpoint: string;
-  /** Auto-generated connection credential managed separately from the instance. */
+  /** The tenant namespace (GTSDB username) on the shared server. */
+  namespace: string;
+  /** Connection credential for the tenant namespace, managed separately. */
   token: string;
   /** When true, the proxy falls back to simulated data if the server is unreachable. */
   simulate: boolean;

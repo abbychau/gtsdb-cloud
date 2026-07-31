@@ -143,9 +143,9 @@ export function CreateInstanceDialog({
                 Sandbox simulation
               </Label>
               <p className="text-xs text-muted-foreground">
-                Keep ON for a live demo instance (instant demo data). Turn OFF
-                only when connecting your own GTSDB backend, or the instance
-                stays offline until one is configured.
+                Instances are provisioned as isolated tenants on the shared
+                GTSDB server. Sandbox is only a fallback when that server is
+                unreachable.
               </p>
             </div>
             <Switch

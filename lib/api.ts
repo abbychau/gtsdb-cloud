@@ -108,16 +108,6 @@ export async function regenerateInstanceToken(
   });
 }
 
-export async function revokeInstanceToken(
-  id: string,
-  token: string
-): Promise<PlatformInstance> {
-  return request<PlatformInstance>(`/api/instances/${id}/token`, {
-    method: "DELETE",
-    token,
-  });
-}
-
 export async function getInstanceUsage(
   id: string,
   token: string

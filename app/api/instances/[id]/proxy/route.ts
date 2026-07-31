@@ -102,17 +102,22 @@ export const POST = handle(
         );
         return NextResponse.json(gtsdb);
       }
-      if (result.status === 401) {
+      if (result.status === 401 && inst.namespace) {
+        // A real tenant that suddenly can't authenticate — its credential was
+        // revoked/rotated on the server. Surface the error rather than masking
+        // it with the sandbox.
         await touchInstance(inst.id, undefined, "offline");
         return NextResponse.json(
           {
             success: false,
             message:
-              "GTSDB rejected the connection credential (401 Unauthorized). Check the credential in the Connection tab.",
+              "GTSDB rejected this tenant's credential (401 Unauthorized). Rotate it from the Connection tab.",
           },
           { status: 502 }
         );
       }
+      // Otherwise (connection error, or an unprovisioned sandbox instance)
+      // fall through to the built-in simulator when enabled.
     }
 
     // 2. Fall back to the built-in simulator when enabled (instance stays active).

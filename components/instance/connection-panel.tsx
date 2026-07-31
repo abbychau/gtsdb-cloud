@@ -10,17 +10,15 @@ import {
   Loader2,
   Network,
   RefreshCw,
-  Trash2,
+  Server,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
-import { regenerateInstanceToken, revokeInstanceToken, updateInstance } from "@/lib/api";
+import { regenerateInstanceToken } from "@/lib/api";
 import { maskToken } from "@/lib/utils";
 import type { PlatformInstance } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
@@ -52,6 +50,15 @@ function CopyButton({ value, label }: { value: string; label: string }) {
   );
 }
 
+function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between py-1.5 text-sm">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-mono text-xs">{value ?? "—"}</span>
+    </div>
+  );
+}
+
 export function ConnectionPanel({
   instance,
   onChanged,
@@ -64,13 +71,7 @@ export function ConnectionPanel({
 
   const [reveal, setReveal] = React.useState(false);
   const [rotating, setRotating] = React.useState(false);
-  const [revoking, setRevoking] = React.useState(false);
-  const [backend, setBackend] = React.useState(instance.endpoint);
-  const [savingBackend, setSavingBackend] = React.useState(false);
-
-  const tcpEndpoint = instance.connectionString
-    .replace(/^https:\/\//, "")
-    .replace(/^http:\/\//, "") + ":5555";
+  const provisioned = Boolean(instance.namespace);
 
   async function handleRotate() {
     setRotating(true);
@@ -78,49 +79,24 @@ export function ConnectionPanel({
       const updated = await regenerateInstanceToken(instance.id, token);
       toast.success("Connection credential rotated");
       onChanged(updated);
-    } catch {
-      toast.error("Failed to rotate credential");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to rotate credential");
     } finally {
       setRotating(false);
     }
   }
 
-  async function handleRevoke() {
-    setRevoking(true);
-    try {
-      const updated = await revokeInstanceToken(instance.id, token);
-      toast.success("Connection credential revoked");
-      onChanged(updated);
-    } catch {
-      toast.error("Failed to revoke credential");
-    } finally {
-      setRevoking(false);
-    }
-  }
-
-  async function handleSaveBackend() {
-    setSavingBackend(true);
-    try {
-      const updated = await updateInstance(instance.id, { endpoint: backend.trim() }, token);
-      toast.success("Backend endpoint updated");
-      onChanged(updated);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to update backend");
-    } finally {
-      setSavingBackend(false);
-    }
-  }
-
   return (
     <div className="max-w-2xl space-y-6">
-      {/* Auto-generated endpoints */}
+      {/* Managed endpoints */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-sm">
             <Network className="h-4 w-4" /> Connection string
           </CardTitle>
           <CardDescription>
-            Auto-generated when the instance was created — no setup required.
+            Your instance runs on the shared, multi-tenant GTSDB server. These
+            are the endpoints your SDKs should use.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -134,13 +110,14 @@ export function ConnectionPanel({
           <div className="flex items-center gap-2 rounded-lg border p-3">
             <div className="min-w-0 flex-1">
               <div className="text-xs text-muted-foreground">TCP (high-throughput)</div>
-              <div className="truncate font-mono text-sm">{tcpEndpoint}</div>
+              <div className="truncate font-mono text-sm">{instance.tcpConnectionString}</div>
             </div>
-            <CopyButton value={tcpEndpoint} label="Copy TCP endpoint" />
+            <CopyButton value={instance.tcpConnectionString} label="Copy TCP endpoint" />
           </div>
           <p className="text-xs text-muted-foreground">
-            Point your SDKs at these endpoints to write and query data. The
-            platform routes requests to your sandbox or backend on your behalf.
+            Authenticate with your connection credential (below). GTSDB scopes
+            every request to your instance&apos;s namespace — other tenants are
+            isolated automatically.
           </p>
         </CardContent>
       </Card>
@@ -152,7 +129,8 @@ export function ConnectionPanel({
             <KeyRound className="h-4 w-4" /> Connection credential
           </CardTitle>
           <CardDescription>
-            Managed separately from the instance — rotate or revoke anytime.
+            Managed separately from the instance — rotate anytime to invalidate
+            the old token.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -163,11 +141,11 @@ export function ConnectionPanel({
                 {instance.token ? (
                   <Badge variant="secondary">active</Badge>
                 ) : (
-                  <Badge variant="outline">revoked</Badge>
+                  <Badge variant="outline">not set</Badge>
                 )}
               </div>
               <div className="mt-1 truncate font-mono text-sm">
-                {instance.token ? (reveal ? instance.token : maskToken(instance.token)) : "(revoked)"}
+                {instance.token ? (reveal ? instance.token : maskToken(instance.token)) : "(not set)"}
               </div>
             </div>
             {instance.token && (
@@ -186,93 +164,50 @@ export function ConnectionPanel({
             )}
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline" size="sm" disabled={!instance.token}>
-                  <RefreshCw className="mr-1.5 h-3.5 w-3.5" /> Rotate
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Rotate connection credential?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    A new credential will be generated. Existing clients using the
-                    old token will be disconnected.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel disabled={rotating}>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleRotate} disabled={rotating}>
-                    {rotating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                    Rotate
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline" size="sm" disabled={!instance.token} className="text-destructive">
-                  <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Revoke
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Revoke connection credential?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    The token will be cleared and all client requests using it will
-                    be rejected until you generate a new one.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel disabled={revoking}>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={handleRevoke}
-                    disabled={revoking}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  >
-                    {revoking ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                    Revoke
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline" size="sm" disabled={!instance.token}>
+                <RefreshCw className="mr-1.5 h-3.5 w-3.5" /> Rotate credential
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Rotate connection credential?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {provisioned
+                    ? "GTSDB will reset your tenant token — the current one is immediately invalidated and clients using it will be disconnected."
+                    : "A new sandbox credential will be generated."}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={rotating}>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleRotate} disabled={rotating}>
+                  {rotating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Rotate
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </CardContent>
       </Card>
 
-      {/* Advanced: platform backend (self-hosted) */}
+      {/* Managed server / tenant */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm">Platform backend (advanced)</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-sm">
+            <Server className="h-4 w-4" /> Managed server
+          </CardTitle>
           <CardDescription>
-            Where the platform forwards requests. Leave empty to use the sandbox
-            simulator, or point it at your own GTSDB server.
+            This instance is an isolated tenant on the shared GTSDB server.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="space-y-2">
-            <Label htmlFor="backend">Backend address</Label>
-            <Input
-              id="backend"
-              value={backend}
-              onChange={(e) => setBackend(e.target.value)}
-              placeholder="http://localhost:5556"
-              className="font-mono text-xs"
-            />
-          </div>
-          <div className="flex justify-end">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleSaveBackend}
-              disabled={savingBackend || backend.trim() === instance.endpoint}
-            >
-              {savingBackend ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
-              Save backend
-            </Button>
-          </div>
+        <CardContent>
+          <InfoRow label="Backend" value={instance.endpoint || "sandbox"} />
+          <InfoRow label="Namespace" value={instance.namespace || "sandbox"} />
+          <InfoRow
+            label="Sandbox fallback"
+            value={instance.simulate ? "enabled" : "disabled"}
+          />
         </CardContent>
       </Card>
     </div>
