@@ -5,17 +5,20 @@ import {
   getUser,
   listAllInstances,
   listInstances,
+  updateInstance,
 } from "@/lib/store";
 import { canCreateInstance, getPlan } from "@/lib/plans";
-import { checkHealth, provisionGtsdbUser } from "@/lib/gtsdb-server";
+import { callGtsdb, checkHealth, provisionGtsdbUser } from "@/lib/gtsdb-server";
 import {
   getGtsdbBase,
   getPublicHttpUrl,
   getPublicTcpUrl,
 } from "@/lib/gtsdb-config";
+import { ops, readKeyCounts } from "@/lib/gtsdb";
 import { generateConnectionToken, slugify, uniqueSlug } from "@/lib/utils";
 import type {
   CreateInstanceInput,
+  GtsdbResponse,
   InstanceRegion,
   PlatformInstance,
 } from "@/lib/types";
@@ -38,8 +41,31 @@ export const GET = handle(async (req: NextRequest) => {
   const user = await requireUser(req);
   const instances = await listInstances(user.uid);
   const record = await getUser(user.uid);
+
+  // Reconcile usage against the live shared server so the overview / cards
+  // show real keys & points (the stored counters only track platform proxy
+  // traffic, not data written directly to GTSDB).
+  const base = getGtsdbBase();
+  let liveInstances = instances;
+  if (await checkHealth(base)) {
+    liveInstances = await Promise.all(
+      instances.map(async (inst) => {
+        if (!inst.namespace || !inst.token) return inst;
+        const res = await callGtsdb(base, inst.token, ops.idsWithCount());
+        if (!res.ok) return inst;
+        const counts = readKeyCounts(res.data as GtsdbResponse);
+        const keys = counts.length;
+        const points = counts.reduce((sum, c) => sum + c.count, 0);
+        const usage = { ...inst.usage, keys, points };
+        // Persist the reconciled snapshot (set, not increment).
+        void updateInstance(inst.id, { usage }).catch(() => undefined);
+        return { ...inst, usage };
+      })
+    );
+  }
+
   return NextResponse.json({
-    instances,
+    instances: liveInstances,
     plan: record?.plan ?? "free",
     limits: getPlan(record?.plan ?? "free"),
   });
