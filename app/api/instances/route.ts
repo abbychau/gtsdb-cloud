@@ -111,7 +111,7 @@ export const POST = handle(async (req: NextRequest) => {
   const endpoint = getGtsdbBase();
   const connectionString = getPublicHttpUrl();
   const tcpConnectionString = getPublicTcpUrl();
-  const provision = await provisionGtsdbUser(id);
+  const provision = await provisionGtsdbUser(id, getPlan(plan).maxPoints);
   const token = provision.ok ? provision.token : generateConnectionToken();
   const healthy = provision.ok || (await checkHealth(endpoint));
   const status = provision.ok || healthy || simulate ? "active" : "offline";

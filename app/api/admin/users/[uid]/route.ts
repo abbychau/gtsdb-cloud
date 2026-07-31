@@ -3,6 +3,7 @@ import { handle, HttpError } from "@/lib/route-utils";
 import { requireAdmin } from "@/lib/admin-server";
 import { deleteUser, getUser, setUserPlan } from "@/lib/store";
 import { PLAN_ORDER } from "@/lib/plans";
+import { syncUserQuotas } from "@/lib/gtsdb-server";
 import type { PlanId } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -19,6 +20,8 @@ export const PATCH = handle(
     if (!existing) throw new HttpError(404, "User not found");
 
     const updated = await setUserPlan(params.uid, body.plan as PlanId);
+    // Apply the new plan's storage cap to all of the member's tenants.
+    void syncUserQuotas(params.uid, body.plan as PlanId).catch(() => undefined);
     return NextResponse.json(updated);
   }
 );

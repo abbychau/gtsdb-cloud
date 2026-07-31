@@ -1,6 +1,9 @@
 // Helpers to talk to a real GTSDB server from the platform backend.
 
 import { getAdminToken, getGtsdbBase } from "./gtsdb-config";
+import { getPlan } from "./plans";
+import { listInstances } from "./store";
+import type { PlanId } from "./types";
 
 export interface GtsdbCallResult {
   ok: boolean;
@@ -11,6 +14,8 @@ export interface GtsdbCallResult {
 export type ProvisionResult =
   | { ok: true; name: string; token: string }
   | { ok: false; error: string };
+
+export type SimpleResult = { ok: true } | { ok: false; error: string };
 
 function extractMessage(data: unknown, fallback: string): string {
   if (data && typeof data === "object" && "message" in data) {
@@ -25,12 +30,19 @@ function extractMessage(data: unknown, fallback: string): string {
  * GTSDB is multi-tenant: the returned token scopes every request to that
  * namespace, so each platform instance is isolated on the shared server.
  */
-export async function provisionGtsdbUser(username: string): Promise<ProvisionResult> {
+export async function provisionGtsdbUser(
+  username: string,
+  maxPoints?: number
+): Promise<ProvisionResult> {
   const admin = getAdminToken();
   if (!admin) return { ok: false, error: "GTSDB_ADMIN_TOKEN is not configured" };
   const base = getGtsdbBase();
 
-  const created = await callGtsdb(base, admin, { operation: "adduser", key: username });
+  const created = await callGtsdb(base, admin, {
+    operation: "adduser",
+    key: username,
+    max_points: maxPoints ?? 0,
+  });
   const createdData = created.data as {
     success?: boolean;
     data?: { name?: string; token?: string };
@@ -69,6 +81,41 @@ export async function rotateGtsdbUserToken(username: string): Promise<ProvisionR
     return { ok: true, name: username, token: data.data.token };
   }
   return { ok: false, error: extractMessage(reset.data, "resetkey failed") };
+}
+
+/** Set a tenant's max stored data points on the shared server (0 = unlimited). */
+export async function setGtsdbUserQuota(
+  username: string,
+  maxPoints: number
+): Promise<SimpleResult> {
+  const admin = getAdminToken();
+  if (!admin) return { ok: false, error: "GTSDB_ADMIN_TOKEN is not configured" };
+  const res = await callGtsdb(getGtsdbBase(), admin, {
+    operation: "setquota",
+    key: username,
+    max_points: maxPoints,
+  });
+  const data = res.data as { success?: boolean; message?: string };
+  if (res.ok && data.success) return { ok: true };
+  return { ok: false, error: extractMessage(res.data, "setquota failed") };
+}
+
+/** Apply a plan's storage cap to every provisioned tenant of a user. */
+export async function syncUserQuotas(
+  uid: string,
+  plan: PlanId
+): Promise<{ ok: number; failed: number }> {
+  const maxPoints = getPlan(plan).maxPoints;
+  const instances = await listInstances(uid);
+  let ok = 0;
+  let failed = 0;
+  for (const inst of instances) {
+    if (!inst.namespace) continue;
+    const r = await setGtsdbUserQuota(inst.namespace, maxPoints);
+    if (r.ok) ok++;
+    else failed++;
+  }
+  return { ok, failed };
 }
 
 function normalizeEndpoint(endpoint: string): string {

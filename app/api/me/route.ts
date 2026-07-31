@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { requireUser, handle, HttpError } from "@/lib/route-utils";
 import { getUser, setUserPlan } from "@/lib/store";
 import { getPlan, PLAN_ORDER } from "@/lib/plans";
+import { syncUserQuotas } from "@/lib/gtsdb-server";
 import type { PlanId } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -34,6 +35,8 @@ export const PATCH = handle(async (req: NextRequest) => {
   // flow can be explored. In a real deployment this is where a payment
   // provider (Stripe etc.) would be wired in.
   const updated = await setUserPlan(user.uid, body.plan);
+  // Push the new plan's storage cap to the user's tenants on the shared server.
+  void syncUserQuotas(user.uid, body.plan).catch(() => undefined);
   return NextResponse.json({
     user: updated,
     plan: updated.plan,
