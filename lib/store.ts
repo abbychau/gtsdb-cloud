@@ -39,11 +39,14 @@ async function load(): Promise<StoreShape> {
   } catch {
     cache = { users: {}, instances: {} };
   }
-  // Backfill instances created before slug/connectionString existed.
+  // Backfill/migrate instances. The platform manages ONE shared server, so
+  // every instance points at the same public HTTP/TCP tunnel endpoints. This
+  // also migrates legacy instances that stored a portal-URL connection string
+  // (e.g. https://gtsdb-cloud.abby.md/<slug>).
   for (const inst of Object.values(cache.instances)) {
     if (!inst.slug) inst.slug = `${slugify(inst.name)}-${inst.id.slice(-4)}`;
-    if (!inst.connectionString) inst.connectionString = getPublicHttpUrl();
-    if (!inst.tcpConnectionString) inst.tcpConnectionString = getPublicTcpUrl();
+    inst.connectionString = getPublicHttpUrl();
+    inst.tcpConnectionString = getPublicTcpUrl();
     if (!inst.namespace) inst.namespace = "";
     if (inst.usage?.keys === undefined) inst.usage.keys = 0;
     if (inst.usage?.points === undefined) inst.usage.points = 0;

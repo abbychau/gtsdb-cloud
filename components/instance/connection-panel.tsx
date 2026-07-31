@@ -202,7 +202,6 @@ export function ConnectionPanel({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <InfoRow label="Backend" value={instance.endpoint || "sandbox"} />
           <InfoRow label="Namespace" value={instance.namespace || "sandbox"} />
           <InfoRow
             label="Sandbox fallback"

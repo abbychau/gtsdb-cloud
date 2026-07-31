@@ -3,8 +3,12 @@
 import * as React from "react";
 import {
   Activity,
+  Check,
+  Copy,
   Cpu,
   Database,
+  Eye,
+  EyeOff,
   Gauge,
   HardDrive,
   Loader2,
@@ -12,7 +16,8 @@ import {
   RefreshCw,
   Server,
 } from "lucide-react";
-import { formatCompact, formatNumber } from "@/lib/utils";
+import { toast } from "sonner";
+import { formatCompact, formatNumber, maskToken } from "@/lib/utils";
 import type {
   InstanceStatus,
   InstanceUsage,
@@ -33,6 +38,48 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
       <span className="text-muted-foreground">{label}</span>
       <span className="font-mono text-xs">{value ?? "—"}</span>
     </div>
+  );
+}
+
+/** Token display with reveal + copy, so the credential is visible in the portal. */
+function TokenCell({ token }: { token: string }) {
+  const [reveal, setReveal] = React.useState(false);
+  const [copied, setCopied] = React.useState(false);
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(token);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      toast.error("Copy failed");
+    }
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1">
+      <span>{reveal ? token : maskToken(token)}</span>
+      <button
+        type="button"
+        className="text-muted-foreground hover:text-foreground"
+        onClick={() => setReveal((v) => !v)}
+        aria-label={reveal ? "Hide token" : "Show token"}
+      >
+        {reveal ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+      </button>
+      <button
+        type="button"
+        className="text-muted-foreground hover:text-foreground"
+        onClick={copy}
+        aria-label="Copy token"
+      >
+        {copied ? (
+          <Check className="h-3.5 w-3.5 text-emerald-500" />
+        ) : (
+          <Copy className="h-3.5 w-3.5" />
+        )}
+      </button>
+    </span>
   );
 }
 
@@ -108,8 +155,12 @@ export function InstanceOverview({
               <PlanBadge plan={instance.plan} />
               {instance.simulate && <Badge variant="secondary">sandbox</Badge>}
             </div>
-            <InfoRow label="Connection string" value={instance.connectionString} />
-            <InfoRow label="Managed server" value={instance.endpoint || "sandbox"} />
+            <InfoRow label="HTTP endpoint" value={instance.connectionString} />
+            <InfoRow label="TCP endpoint" value={instance.tcpConnectionString} />
+            <InfoRow
+              label="Credential"
+              value={instance.token ? <TokenCell token={instance.token} /> : "—"}
+            />
             <InfoRow label="Region" value={instance.region} />
             <InfoRow
               label="Last active"
@@ -152,8 +203,8 @@ export function InstanceOverview({
               </>
             ) : (
               <p className="py-3 text-center text-xs text-muted-foreground">
-                No server telemetry available yet. Connect a GTSDB endpoint or
-                enable the sandbox.
+                No server telemetry available yet. Try refreshing, or write some
+                data to generate usage.
               </p>
             )}
           </CardContent>
