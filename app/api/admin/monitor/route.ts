@@ -5,8 +5,9 @@ import { handle } from "@/lib/route-utils";
 import { requireAdmin } from "@/lib/admin-server";
 import { callGtsdb } from "@/lib/gtsdb-server";
 import { getAdminToken, getGtsdbBase } from "@/lib/gtsdb-config";
+import { listAllInstances, listAllUsers } from "@/lib/store";
 import { maskToken } from "@/lib/utils";
-import type { ServerInfo } from "@/lib/types";
+import type { PlanId, ServerInfo } from "@/lib/types";
 
 export const runtime = "nodejs";
 
@@ -80,15 +81,51 @@ export const GET = handle(async (req: NextRequest) => {
     if (si.ok && data?.success && data.data) serverinfo = data.data;
   }
 
-  let tenants: Array<{ name: string; isRoot: boolean; tokenMasked: string }> = [];
+  let tenants: Array<{
+    name: string;
+    isRoot: boolean;
+    tokenMasked: string;
+    instance: {
+      id: string;
+      name: string;
+      plan: PlanId;
+      ownerEmail: string | null;
+    } | null;
+  }> = [];
+
+  // Map each physical tenant (named by instance id) back to its platform
+  // instance so the monitor can show one tenant per instance.
+  const instances = await listAllInstances();
+  const users = await listAllUsers();
+  const emailByUid = new Map(users.map((u) => [u.uid, u.email]));
+  const instByNamespace = new Map<string, {
+    id: string;
+    name: string;
+    plan: PlanId;
+    ownerEmail: string | null;
+  }>();
+  for (const i of instances) {
+    if (!i.namespace) continue;
+    instByNamespace.set(i.namespace, {
+      id: i.id,
+      name: i.name,
+      plan: i.plan,
+      ownerEmail: emailByUid.get(i.ownerUid) ?? null,
+    });
+  }
+
   try {
     const raw = await fs.readFile(path.join(dataDir, "users.json"), "utf8");
     const arr = JSON.parse(raw) as Array<{ name?: string; token?: string }>;
-    tenants = arr.map((u) => ({
-      name: u.name ?? "",
-      isRoot: u.name === "root",
-      tokenMasked: maskToken(u.token ?? ""),
-    }));
+    tenants = arr.map((u) => {
+      const name = u.name ?? "";
+      return {
+        name,
+        isRoot: name === "root",
+        tokenMasked: maskToken(u.token ?? ""),
+        instance: name ? (instByNamespace.get(name) ?? null) : null,
+      };
+    });
   } catch {
     // no users file yet
   }

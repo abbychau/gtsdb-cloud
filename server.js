@@ -17,6 +17,7 @@ const { createServer } = require("http");
 const path = require("path");
 const next = require("next");
 const { startGtsdb, stopGtsdb } = require(path.join(__dirname, "lib", "gtsdb-process.cjs"));
+const { migrateMissingTenants } = require(path.join(__dirname, "lib", "tenant-migrate.cjs"));
 
 const dev = process.argv.includes("--dev") || process.env.NODE_ENV === "development";
 const hostname = "0.0.0.0";
@@ -28,6 +29,10 @@ const handle = app.getRequestHandler();
 async function main() {
   await app.prepare();
   await startGtsdb({ root: __dirname });
+
+  // Ensure every platform instance has a real tenant on the shared server
+  // (one tenant per instance), so the physical server stays in sync.
+  await migrateMissingTenants();
 
   const server = createServer((req, res) => handle(req, res));
   server.listen(port, hostname, () => {

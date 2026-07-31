@@ -44,6 +44,11 @@ export function ApiConsole({ instance }: { instance: PlatformInstance }) {
   const endpoint = instance.connectionString || "https://gtsdb-http-5556.abby.md";
   const token = instance.token || "<your-token>";
 
+  // TCP endpoint (JSON-lines protocol), e.g. tcp://gtsdb-tcp-5555.abby.md:5555
+  const tcpUrl = instance.tcpConnectionString || "tcp://gtsdb-tcp-5555.abby.md:5555";
+  const tcpHost = tcpUrl.replace(/^tcp:\/\//, ""); // host:port
+  const [tcpHostname, tcpPort] = tcpHost.split(":");
+
   const snippets: Record<string, { write: string; read: string; subscribe: string }> = {
     curl: {
       write: `curl -X POST ${endpoint}/ \\
@@ -185,6 +190,22 @@ func main() {
       subscribe: `// Subscribe over the TCP protocol (port 5555).
 // See: https://github.com/abbychau/gtsdb/blob/main/docs/tcp-protocol.md`,
     },
+    tcp: {
+      write: `# GTSDB speaks JSON-lines over TCP. Open a connection, authenticate,
+# then send each operation as its own line (same ops as the HTTP API).
+nc ${tcpHostname} ${tcpPort} <<'EOF'
+{"operation":"auth","key":"${token}"}
+{"operation":"write","key":"sensor-1","write":{"value":42.5}}
+EOF`,
+      read: `nc ${tcpHostname} ${tcpPort} <<'EOF'
+{"operation":"auth","key":"${token}"}
+{"operation":"read","key":"sensor-1","read":{"start_timestamp":1717965210,"end_timestamp":1717965310,"downsampling":60,"aggregation":"avg"}}
+EOF`,
+      subscribe: `nc ${tcpHostname} ${tcpPort} <<'EOF'
+{"operation":"auth","key":"${token}"}
+{"operation":"subscribe","key":"sensor-1"}
+EOF`,
+    },
   };
 
   return (
@@ -233,9 +254,26 @@ func main() {
               <TabsTrigger value="node">Node.js</TabsTrigger>
               <TabsTrigger value="python">Python</TabsTrigger>
               <TabsTrigger value="go">Go</TabsTrigger>
+              <TabsTrigger value="tcp">TCP</TabsTrigger>
             </TabsList>
             {Object.entries(snippets).map(([lang, snips]) => (
               <TabsContent key={lang} value={lang} className="space-y-4">
+                {lang === "tcp" ? (
+                  <p className="rounded-lg border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                    GTSDB also speaks <strong>JSON-lines over TCP</strong> on port{" "}
+                    <code className="font-mono">{tcpPort}</code>. Authenticate first, then send
+                    each operation as its own line — the same operations as the HTTP API. See the{" "}
+                    <a
+                      href="https://github.com/abbychau/gtsdb/blob/main/docs/tcp-protocol.md"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-primary underline underline-offset-2"
+                    >
+                      TCP protocol
+                    </a>{" "}
+                    guide for details.
+                  </p>
+                ) : null}
                 <div>
                   <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                     Write a point

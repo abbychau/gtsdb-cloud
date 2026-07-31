@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import {
   Activity,
   Boxes,
@@ -647,6 +648,7 @@ export default function AdminPage() {
                           <TableRow>
                             <TableHead>Tenant</TableHead>
                             <TableHead>Role</TableHead>
+                            <TableHead>Instance</TableHead>
                             <TableHead>Token</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -654,7 +656,7 @@ export default function AdminPage() {
                           {monitor.tenants.length === 0 ? (
                             <TableRow>
                               <TableCell
-                                colSpan={3}
+                                colSpan={4}
                                 className="py-8 text-center text-muted-foreground"
                               >
                                 No tenants yet.
@@ -669,6 +671,18 @@ export default function AdminPage() {
                                     <Badge>root</Badge>
                                   ) : (
                                     <Badge variant="outline">tenant</Badge>
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  {t.instance ? (
+                                    <Link
+                                      href={`/dashboard/instances/${t.instance.id}`}
+                                      className="text-sm font-medium text-primary underline underline-offset-2 hover:text-primary/80"
+                                    >
+                                      {t.instance.name}
+                                    </Link>
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground">—</span>
                                   )}
                                 </TableCell>
                                 <TableCell className="font-mono text-xs text-muted-foreground">

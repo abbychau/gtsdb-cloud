@@ -31,6 +31,13 @@ export interface AdminTenant {
   name: string;
   isRoot: boolean;
   tokenMasked: string;
+  /** The platform instance this tenant maps to (null for root / orphans). */
+  instance: {
+    id: string;
+    name: string;
+    plan: PlanId;
+    ownerEmail: string | null;
+  } | null;
 }
 
 /** Live status of the physical (shared) GTSDB server. */
