@@ -5,6 +5,7 @@ import type {
   PlanId,
   PlatformInstance,
   PlatformUser,
+  ServerInfo,
 } from "./types";
 
 export interface AdminStats {
@@ -24,6 +25,26 @@ export interface AdminUser extends PlatformUser {
 
 export interface AdminInstance extends PlatformInstance {
   ownerEmail?: string | null;
+}
+
+export interface AdminTenant {
+  name: string;
+  isRoot: boolean;
+  tokenMasked: string;
+}
+
+/** Live status of the physical (shared) GTSDB server. */
+export interface AdminMonitor {
+  online: boolean;
+  /** Server-wide Prometheus metrics (all tenants, not user-scoped). */
+  metrics: Record<string, number> | null;
+  /** Detailed serverinfo (from the root token). */
+  serverinfo: ServerInfo | null;
+  tenants: AdminTenant[];
+  dataDir: string;
+  dataDirBytes: number;
+  dataDirFiles: number;
+  checkedAt: string;
 }
 
 export class AdminApiError extends Error {
@@ -69,6 +90,12 @@ async function request<T>(
 
 export async function getAdminStats(token: string): Promise<AdminStats> {
   return request<AdminStats>("/api/admin/stats", { token });
+}
+
+// --- Physical server monitor ----------------------------------------------
+
+export async function getAdminMonitor(token: string): Promise<AdminMonitor> {
+  return request<AdminMonitor>("/api/admin/monitor", { token });
 }
 
 // --- Users ---------------------------------------------------------------

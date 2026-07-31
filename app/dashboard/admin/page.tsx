@@ -4,10 +4,15 @@ import * as React from "react";
 import {
   Activity,
   Boxes,
+  Cpu,
   Database,
+  FolderOpen,
+  Gauge,
   HardDrive,
   Loader2,
+  MemoryStick,
   RefreshCw,
+  Server,
   ShieldCheck,
   Trash2,
   Users,
@@ -16,8 +21,9 @@ import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
 import { isAdminEmail } from "@/lib/admin";
 import { getPlan, PLAN_ORDER } from "@/lib/plans";
-import { formatCompact, formatNumber } from "@/lib/utils";
+import { formatBytes, formatCompact, formatNumber } from "@/lib/utils";
 import {
+  getAdminMonitor,
   getAdminStats,
   listAdminUsers,
   listAdminInstances,
@@ -26,6 +32,7 @@ import {
   updateAdminInstance,
   deleteAdminInstance,
   type AdminInstance,
+  type AdminMonitor,
   type AdminStats,
   type AdminUser,
 } from "@/lib/admin-api";
@@ -72,6 +79,25 @@ const STATUS_STYLE: Record<InstanceStatus, string> = {
   offline: "bg-muted text-muted-foreground",
   suspended: "bg-red-500/15 text-red-600 dark:text-red-400",
 };
+
+function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between py-1.5 text-sm">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="font-mono text-xs">{value ?? "—"}</span>
+    </div>
+  );
+}
+
+function formatUptime(seconds: number): string {
+  if (!seconds) return "—";
+  const d = Math.floor(seconds / 86400);
+  const h = Math.floor((seconds % 86400) / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  if (d) return `${d}d ${h}h`;
+  if (h) return `${h}h ${m}m`;
+  return `${m}m`;
+}
 
 function PlanSelect({
   value,
@@ -147,6 +173,7 @@ export default function AdminPage() {
   const [stats, setStats] = React.useState<AdminStats | null>(null);
   const [users, setUsers] = React.useState<AdminUser[]>([]);
   const [instances, setInstances] = React.useState<AdminInstance[]>([]);
+  const [monitor, setMonitor] = React.useState<AdminMonitor | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [refreshing, setRefreshing] = React.useState(false);
 
@@ -155,14 +182,16 @@ export default function AdminPage() {
   const load = React.useCallback(async () => {
     if (!token) return;
     try {
-      const [s, u, i] = await Promise.all([
+      const [s, u, i, m] = await Promise.all([
         getAdminStats(token),
         listAdminUsers(token),
         listAdminInstances(token),
+        getAdminMonitor(token),
       ]);
       setStats(s);
       setUsers(u);
       setInstances(i);
+      setMonitor(m);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to load admin data");
     } finally {
@@ -283,6 +312,7 @@ export default function AdminPage() {
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="members">Members ({users.length})</TabsTrigger>
           <TabsTrigger value="instances">Instances ({instances.length})</TabsTrigger>
+          <TabsTrigger value="monitor">Monitor</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
@@ -491,6 +521,168 @@ export default function AdminPage() {
                   )}
                 </TableBody>
               </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="monitor" className="space-y-6">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <Server className="h-4 w-4" /> Physical server
+                {monitor?.online ? (
+                  <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                    online
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="text-muted-foreground">
+                    offline
+                  </Badge>
+                )}
+                <span className="ml-auto text-xs font-normal text-muted-foreground">
+                  checked {monitor ? new Date(monitor.checkedAt).toLocaleTimeString() : "—"}
+                </span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {!monitor?.online ? (
+                <p className="py-6 text-center text-sm text-muted-foreground">
+                  The managed GTSDB server is unreachable at the platform endpoint.
+                </p>
+              ) : (
+                <div className="space-y-5">
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <StatCard
+                      icon={Database}
+                      label="Server keys"
+                      value={formatNumber(monitor.metrics?.gtsdb_key_count ?? 0)}
+                    />
+                    <StatCard
+                      icon={HardDrive}
+                      label="Data points"
+                      value={formatCompact(monitor.metrics?.gtsdb_data_points_total ?? 0)}
+                    />
+                    <StatCard
+                      icon={MemoryStick}
+                      label="Memory (alloc)"
+                      value={`${((monitor.metrics?.go_memstats_alloc_bytes ?? 0) / 1048576).toFixed(1)} MB`}
+                    />
+                    <StatCard
+                      icon={Activity}
+                      label="Uptime"
+                      value={formatUptime(monitor.metrics?.gtsdb_uptime_seconds ?? 0)}
+                    />
+                  </div>
+
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="flex items-center gap-2 text-sm">
+                          <Gauge className="h-4 w-4" /> Runtime
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-1">
+                        <InfoRow
+                          label="Version"
+                          value={monitor.serverinfo?.version ?? "1.0"}
+                        />
+                        <InfoRow
+                          label="Goroutines"
+                          value={formatNumber(monitor.metrics?.gtsdb_goroutines ?? 0)}
+                        />
+                        <InfoRow
+                          label="CPU cores"
+                          value={formatNumber(monitor.metrics?.go_cpu_count ?? 0)}
+                        />
+                        <InfoRow
+                          label="Heap in use"
+                          value={`${((monitor.metrics?.go_memstats_heap_inuse_bytes ?? 0) / 1048576).toFixed(1)} MB`}
+                        />
+                        <InfoRow
+                          label="GC (total)"
+                          value={`${((monitor.metrics?.go_gc_duration_seconds_sum ?? 0)).toFixed(3)}s`}
+                        />
+                        <InfoRow
+                          label="File-handle LRU"
+                          value={monitor.serverinfo?.file_handle_lru ?? "—"}
+                        />
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="flex items-center gap-2 text-sm">
+                          <Cpu className="h-4 w-4" /> Listen & storage
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-1">
+                        <InfoRow
+                          label="HTTP"
+                          value={monitor.serverinfo?.listen_http ?? "—"}
+                        />
+                        <InfoRow
+                          label="TCP"
+                          value={monitor.serverinfo?.listen_tcp ?? "—"}
+                        />
+                        <InfoRow
+                          label="Data dir"
+                          value={monitor.dataDir}
+                        />
+                        <InfoRow
+                          label="Data size"
+                          value={`${formatBytes(monitor.dataDirBytes)} · ${monitor.dataDirFiles} files`}
+                        />
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="flex items-center gap-2 text-sm">
+                        <FolderOpen className="h-4 w-4" /> Tenants on the physical server
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Tenant</TableHead>
+                            <TableHead>Role</TableHead>
+                            <TableHead>Token</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {monitor.tenants.length === 0 ? (
+                            <TableRow>
+                              <TableCell
+                                colSpan={3}
+                                className="py-8 text-center text-muted-foreground"
+                              >
+                                No tenants yet.
+                              </TableCell>
+                            </TableRow>
+                          ) : (
+                            monitor.tenants.map((t) => (
+                              <TableRow key={t.name}>
+                                <TableCell className="font-mono text-sm">{t.name}</TableCell>
+                                <TableCell>
+                                  {t.isRoot ? (
+                                    <Badge>root</Badge>
+                                  ) : (
+                                    <Badge variant="outline">tenant</Badge>
+                                  )}
+                                </TableCell>
+                                <TableCell className="font-mono text-xs text-muted-foreground">
+                                  {t.tokenMasked}
+                                </TableCell>
+                              </TableRow>
+                            ))
+                          )}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
