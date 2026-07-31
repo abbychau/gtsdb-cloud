@@ -4,8 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 13000",
+    "dev:all": "concurrently -k -n portal,gtsdb -c cyan,green \"next dev -p 13000\" \"cd .. && go run . gtsdb.local.ini\"",
     "build": "next build",
     "start": "next start -p 13000",
+    "start:all": "concurrently -k -n portal,gtsdb -c cyan,green \"next start -p 13000\" \"cd .. && go run . gtsdb.local.ini\"",
     "lint": "next lint"
   },
   "dependencies": {
@@ -47,6 +49,7 @@
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "autoprefixer": "^10.4.20",
+    "concurrently": "^10.0.4",
     "eslint": "^8",
     "eslint-config-next": "14.2.35",
     "postcss": "^8",

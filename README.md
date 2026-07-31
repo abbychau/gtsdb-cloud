@@ -37,24 +37,33 @@ npm install
 
 # 2. Configure Firebase (optional — see below)
 cp .env.local.example .env.local
-# ... fill in your Firebase web app config ...
+# ... fill in your Firebase web app config and GTSDB_ADMIN_TOKEN ...
 
-# 3. Run
-npm run dev
-# -> http://localhost:3000
+# 3. Run the whole stack together (portal + managed GTSDB)
+npm run dev:all
+# -> portal  http://localhost:13000   ·   GTSDB  http://localhost:5556
 ```
 
-Open the app, sign in (or hit **"Explore with a local demo session"**), click
-**New instance**, and you're already querying simulated sensor data. Point an
-instance at a real GTSDB server and add its token to go live.
+`npm run dev:all` starts the Next.js portal **and** the shared, multi-tenant
+GTSDB server (via `gtsdb.local.ini`) together using `concurrently` — Ctrl+C
+stops both. Use `npm run dev` for the portal alone, or `npm run start:all` for
+the built app + GTSDB.
 
-### Using a real GTSDB server
+Open the app, sign in, click **New instance** — the platform provisions a real,
+isolated tenant namespace (GTSDB user) on the shared server via `adduser`, and
+gives you its connection credential. Clients connect straight to the managed
+endpoints (`GTSDB_PUBLIC_HTTP_URL` / `GTSDB_PUBLIC_TCP_URL`).
 
-1. Run GTSDB (single binary or `docker run -p 5555:5555 -p 5556:5556 abbychau/gtsdb`).
-2. In the platform, create/update an instance and set its **endpoint**
-   (e.g. `http://localhost:5556`) and **connection token**.
-3. The platform proxies operations to your server on your behalf — the token is
-   stored server-side and never sent to the browser.
+### Managing the shared GTSDB server
+
+- The platform manages **one** GTSDB server on behalf of all users. Each
+  platform instance = one GTSDB user (tenant namespace) created with `adduser`,
+  isolated automatically (tenants see their own folder + the shared `root/`).
+- Config in `.env.local`:
+  - `GTSDB_ADMIN_TOKEN` — the root token of the shared server (required to provision tenants)
+  - `GTSDB_BASE_URL` — internal address the platform proxies to (default `http://localhost:5556`)
+  - `GTSDB_PUBLIC_HTTP_URL` / `GTSDB_PUBLIC_TCP_URL` — public endpoints clients use
+- Sandbox simulation is only a fallback when the shared server is unreachable.
 
 ## 🔥 Firebase setup
 
