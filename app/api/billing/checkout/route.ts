@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { requireUser, handle, HttpError } from "@/lib/route-utils";
 import { getUser, setUserStripeCustomer } from "@/lib/store";
+import { getPortalPublicUrl } from "@/lib/gtsdb-config";
 import { PLAN_ORDER } from "@/lib/plans";
 import { getPriceId, getStripe, isStripeConfigured } from "@/lib/stripe";
 import type { PlanId } from "@/lib/types";
@@ -37,7 +38,9 @@ export const POST = handle(async (req: NextRequest) => {
     await setUserStripeCustomer(user.uid, customerId);
   }
 
-  const origin = req.nextUrl.origin;
+  // Public, browser-reachable origin — NOT req.nextUrl.origin (behind the
+  // Cloudflare tunnel that resolves to http://0.0.0.0:13000).
+  const origin = getPortalPublicUrl() || req.nextUrl.origin;
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
     mode: "subscription",

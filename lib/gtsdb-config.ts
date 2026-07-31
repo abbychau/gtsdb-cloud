@@ -21,3 +21,13 @@ export function getPublicHttpUrl(): string {
 export function getPublicTcpUrl(): string {
   return process.env.GTSDB_PUBLIC_TCP_URL || "tcp://gtsdb-tcp-5555.abby.md:5555";
 }
+
+/**
+ * Canonical public base URL of the portal. Used for Stripe success/cancel/
+ * return URLs. Must be a real, browser-reachable origin — never derive it from
+ * the request Host header behind a Cloudflare tunnel (it resolves to
+ * 0.0.0.0:13000 which the browser cannot reach).
+ */
+export function getPortalPublicUrl(): string {
+  return process.env.NEXT_PUBLIC_APP_URL || "https://gtsdb-cloud.abby.md";
+}
