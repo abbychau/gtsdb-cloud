@@ -13,9 +13,11 @@ import {
   Settings,
   BookOpen,
   ChevronsUpDown,
+  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth-context";
+import { isAdminEmail } from "@/lib/admin";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -41,9 +43,13 @@ const NAV = [
 
 function SidebarContent() {
   const pathname = usePathname();
+  const { user } = useAuth();
+  const nav = isAdminEmail(user?.email)
+    ? [...NAV, { href: "/dashboard/admin", label: "Admin", icon: ShieldCheck }]
+    : NAV;
   return (
     <nav className="flex flex-1 flex-col gap-1 px-3 py-4">
-      {NAV.map((item) => {
+      {nav.map((item) => {
         const active =
           item.href === "/dashboard"
             ? pathname === "/dashboard"

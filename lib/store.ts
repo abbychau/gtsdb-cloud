@@ -138,6 +138,25 @@ export async function listAllInstances(): Promise<PlatformInstance[]> {
   return Object.values(store.instances);
 }
 
+export async function listAllUsers(): Promise<PlatformUser[]> {
+  const store = await load();
+  return Object.values(store.users).sort((a, b) =>
+    b.createdAt.localeCompare(a.createdAt)
+  );
+}
+
+export async function deleteUser(uid: string): Promise<void> {
+  return mutate(async () => {
+    const store = await load();
+    delete store.users[uid];
+    // Cascade: remove every instance owned by this user.
+    for (const id of Object.keys(store.instances)) {
+      if (store.instances[id].ownerUid === uid) delete store.instances[id];
+    }
+    await save();
+  });
+}
+
 export async function getInstance(
   id: string
 ): Promise<PlatformInstance | null> {
