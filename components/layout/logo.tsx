@@ -11,11 +11,11 @@ export function Logo({
   subtitle?: string;
 }) {
   return (
-    <Link href="/" className={cn("group flex items-center gap-2.5", className)}>
+    <Link href="/" className={cn("flex items-center gap-2.5", className)}>
       {/* White-tile logo: sits on a white rounded tile so it reads as a
           brand mark in both light and dark themes (logo.png has an opaque
           white background). */}
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-black/5 transition-shadow group-hover:shadow-md dark:ring-white/10">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white">
         <Image
           src={logo}
           alt="GTSDB Cloud"

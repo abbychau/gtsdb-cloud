@@ -25,11 +25,17 @@ export function AuthCard({
           <div className="rounded-xl border bg-card p-6 shadow-sm">{children}</div>
           <p className="mt-4 text-center text-xs text-muted-foreground">
             By continuing you agree to the{" "}
-            <Link href="/docs" className="underline underline-offset-2">
+            <Link
+              href="/terms"
+              className="font-medium text-foreground underline underline-offset-2 transition-colors hover:text-primary"
+            >
               Terms of Service
             </Link>{" "}
             and{" "}
-            <Link href="/docs" className="underline underline-offset-2">
+            <Link
+              href="/privacy"
+              className="font-medium text-foreground underline underline-offset-2 transition-colors hover:text-primary"
+            >
               Privacy Policy
             </Link>
             .
