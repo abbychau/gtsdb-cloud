@@ -12,12 +12,12 @@ export const PLANS: Record<PlanId, Plan> = {
     priceYearly: 0,
     maxInstances: 1,
     maxKeysPerInstance: 10,
-    maxPoints: 1_000_000,
+    maxPoints: 5_000_000,
     retentionDays: 7,
     features: [
       "1 managed instance",
       "Up to 10 series per instance",
-      "1M data points / month",
+      "5M data points storage",
       "7-day retention",
       "REST + TCP API access",
       "Community support",
@@ -32,12 +32,12 @@ export const PLANS: Record<PlanId, Plan> = {
     priceYearly: 290,
     maxInstances: 5,
     maxKeysPerInstance: 500,
-    maxPoints: 50_000_000,
+    maxPoints: 500_000_000,
     retentionDays: 90,
     features: [
       "5 managed instances",
       "Up to 500 series per instance",
-      "50M data points / month",
+      "500M data points storage",
       "90-day retention",
       "Downsampling & aggregation",
       "Usage analytics dashboard",
@@ -54,12 +54,12 @@ export const PLANS: Record<PlanId, Plan> = {
     priceYearly: 990,
     maxInstances: 20,
     maxKeysPerInstance: 5000,
-    maxPoints: 500_000_000,
+    maxPoints: 5_000_000_000,
     retentionDays: 365,
     features: [
       "20 managed instances",
       "Up to 5,000 series per instance",
-      "500M data points / month",
+      "5B data points storage",
       "12-month retention",
       "SSO & team roles",
       "Priority support (4h)",
@@ -79,7 +79,7 @@ export function getPlan(id: PlanId): Plan {
 export function planLimitLabel(plan: Plan): string {
   return `${plan.maxInstances} instance${plan.maxInstances > 1 ? "s" : ""} · ${formatPoints(
     plan.maxPoints
-  )} pts/mo`;
+  )} pts storage`;
 }
 
 export function formatPoints(n: number): string {

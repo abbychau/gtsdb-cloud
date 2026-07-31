@@ -66,7 +66,7 @@ export default function OverviewPage() {
           icon={BarChart3}
           label="Data points"
           value={formatCompact(totalPoints)}
-          hint={`${formatCompact(planDef.maxPoints)} / month on ${planDef.name}`}
+          hint={`${formatCompact(planDef.maxPoints)} storage on ${planDef.name}`}
         />
         <StatCard
           icon={KeyRound}

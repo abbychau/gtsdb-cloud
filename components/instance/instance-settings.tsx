@@ -6,7 +6,7 @@ import { Loader2, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
 import { deleteInstance, updateInstance } from "@/lib/api";
-import { getPlan } from "@/lib/plans";
+import { getPlan, formatPoints } from "@/lib/plans";
 import type { InstanceRegion, PlatformInstance } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -171,8 +171,8 @@ export function InstanceSettings({
             <span>{plan.retentionDays} days</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Data points / month</span>
-            <span>{plan.maxPoints.toLocaleString()}</span>
+            <span className="text-muted-foreground">Data points storage</span>
+            <span>{formatPoints(plan.maxPoints)}</span>
           </div>
           <Separator className="my-2" />
           <Button asChild variant="outline" size="sm">

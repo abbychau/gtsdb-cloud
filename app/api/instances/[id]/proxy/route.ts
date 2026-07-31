@@ -3,7 +3,7 @@ import { requireUser, handle, HttpError } from "@/lib/route-utils";
 import { getInstance, touchInstance } from "@/lib/store";
 import { callGtsdb } from "@/lib/gtsdb-server";
 import { simulateOperation } from "@/lib/simulate";
-import { getPlan } from "@/lib/plans";
+import { getPlan, formatPoints } from "@/lib/plans";
 import type { GtsdbResponse, PlatformInstance } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -54,7 +54,7 @@ function incomingImpact(body: Record<string, unknown>): IncomingImpact {
 function quotaViolation(inst: PlatformInstance, impact: IncomingImpact): string | null {
   const plan = getPlan(inst.plan);
   if (impact.points > 0 && inst.usage.points + impact.points > plan.maxPoints) {
-    return `Data point quota exceeded for the ${plan.name} plan (${plan.maxPoints.toLocaleString()} pts/mo). Upgrade to keep writing.`;
+    return `Data point storage quota exceeded for the ${plan.name} plan (${formatPoints(plan.maxPoints)} pts). Delete data or upgrade to store more.`;
   }
   if (impact.newKeys > 0 && inst.usage.keys + impact.newKeys > plan.maxKeysPerInstance) {
     return `Series quota exceeded for the ${plan.name} plan (${plan.maxKeysPerInstance} keys). Delete a key or upgrade.`;

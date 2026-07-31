@@ -93,7 +93,7 @@ export default function BillingPage() {
               value={Math.min(100, (instances.length / planDef.maxInstances) * 100)}
             />
             <div className="flex items-baseline justify-between">
-              <span className="text-sm text-muted-foreground">Data points this month</span>
+              <span className="text-sm text-muted-foreground">Data points stored</span>
               <span className="text-sm font-medium">
                 {formatCompact(totalPoints)} / {formatCompact(planDef.maxPoints)}
               </span>

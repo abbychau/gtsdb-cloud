@@ -146,7 +146,7 @@ export interface Plan {
   priceYearly: number;
   maxInstances: number;
   maxKeysPerInstance: number;
-  maxPoints: number; // points / month (soft cap)
+  maxPoints: number; // max stored data points (hard storage cap)
   retentionDays: number;
   features: string[];
   highlighted?: boolean;
