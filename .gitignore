@@ -35,6 +35,9 @@ next-env.d.ts
 
 # runtime platform data store
 /data/*.json
+/data/*.db
+/data/*.db-*
+/data/backups/
 !/data/.gitkeep
 
 # managed GTSDB binary (built by `npm run gtsdb:build`)

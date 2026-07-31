@@ -41,11 +41,15 @@ const INVOICES = [
   { id: "INV-2026-0002", date: "Jun 1, 2026", amount: "$0.00", status: "Paid", plan: "free" as PlanId },
 ];
 
+// Inlined at build time; enables the real Stripe checkout flow.
+const stripeEnabled = Boolean(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
+
 export default function BillingPage() {
   const { authToken, user } = useAuth();
   const { instances, plan, limits, refresh } = useInstances();
   const [busy, setBusy] = React.useState<PlanId | null>(null);
   const [showInvoices, setShowInvoices] = React.useState(false);
+  const [portalBusy, setPortalBusy] = React.useState(false);
 
   const totalPoints = instances.reduce((s, i) => s + i.usage.points, 0);
   const planDef = getPlan(plan);
@@ -54,13 +58,51 @@ export default function BillingPage() {
     if (!authToken) return;
     setBusy(target);
     try {
-      await setPlan(target, authToken);
-      toast.success(`Switched to ${getPlan(target).name} plan`);
-      refresh();
+      // Free downgrades (and all plan changes without Stripe) keep the demo flow.
+      if (target === "free" || !stripeEnabled) {
+        await setPlan(target, authToken);
+        toast.success(`Switched to ${getPlan(target).name} plan`);
+        refresh();
+        return;
+      }
+      // Paid upgrade → real Stripe Checkout.
+      const res = await fetch("/api/billing/checkout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({ plan: target }),
+      });
+      const data = (await res.json().catch(() => null)) as { url?: string; error?: string } | null;
+      if (!res.ok || !data?.url) {
+        throw new Error(data?.error ?? "Failed to start checkout");
+      }
+      window.location.href = data.url;
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to update plan");
     } finally {
       setBusy(null);
+    }
+  }
+
+  async function handlePortal() {
+    if (!authToken) return;
+    setPortalBusy(true);
+    try {
+      const res = await fetch("/api/billing/portal", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      const data = (await res.json().catch(() => null)) as { url?: string; error?: string } | null;
+      if (!res.ok || !data?.url) {
+        throw new Error(data?.error ?? "Failed to open billing portal");
+      }
+      window.location.href = data.url;
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to open billing portal");
+    } finally {
+      setPortalBusy(false);
     }
   }
 
@@ -126,14 +168,29 @@ export default function BillingPage() {
                 You&apos;re on the free plan — no payment required.
               </p>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full"
-              onClick={() => setShowInvoices((v) => !v)}
-            >
-              {showInvoices ? "Hide" : "View"} invoices
-            </Button>
+            {stripeEnabled && plan !== "free" ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full"
+                disabled={portalBusy}
+                onClick={handlePortal}
+              >
+                {portalBusy ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : null}
+                Manage billing
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={() => setShowInvoices((v) => !v)}
+              >
+                {showInvoices ? "Hide" : "View"} invoices
+              </Button>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -241,8 +298,9 @@ export default function BillingPage() {
 
       <Separator />
       <p className="text-xs text-muted-foreground">
-        Billing is a demonstration of the freemium flow. Plans and invoices are
-        simulated — no real charges are made.
+        {stripeEnabled
+          ? "Billing is handled by Stripe Checkout. Cancel or update your subscription from the billing portal."
+          : "Billing is a demonstration of the freemium flow. Plans and invoices are simulated — no real charges are made. Set STRIPE_SECRET_KEY to enable real payments."}
       </p>
     </div>
   );

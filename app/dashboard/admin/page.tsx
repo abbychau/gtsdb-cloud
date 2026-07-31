@@ -4,9 +4,11 @@ import * as React from "react";
 import Link from "next/link";
 import {
   Activity,
+  Archive,
   Boxes,
   Cpu,
   Database,
+  Download,
   FolderOpen,
   Gauge,
   HardDrive,
@@ -24,25 +26,29 @@ import { isAdminEmail } from "@/lib/admin";
 import { getPlan, PLAN_ORDER } from "@/lib/plans";
 import { formatBytes, formatCompact, formatNumber } from "@/lib/utils";
 import {
+  createBackup,
+  deleteAdminInstance,
+  deleteAdminUser,
+  downloadBackup,
   getAdminMonitor,
   getAdminStats,
-  listAdminUsers,
   listAdminInstances,
+  listAdminUsers,
+  listBackups,
   setAdminUserPlan,
-  deleteAdminUser,
   updateAdminInstance,
-  deleteAdminInstance,
   type AdminInstance,
   type AdminMonitor,
   type AdminStats,
   type AdminUser,
+  type BackupInfo,
 } from "@/lib/admin-api";
 import type { InstanceStatus, PlanId } from "@/lib/types";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { EmptyState } from "@/components/dashboard/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -175,6 +181,8 @@ export default function AdminPage() {
   const [users, setUsers] = React.useState<AdminUser[]>([]);
   const [instances, setInstances] = React.useState<AdminInstance[]>([]);
   const [monitor, setMonitor] = React.useState<AdminMonitor | null>(null);
+  const [backups, setBackups] = React.useState<BackupInfo[]>([]);
+  const [backingUp, setBackingUp] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
   const [refreshing, setRefreshing] = React.useState(false);
 
@@ -183,16 +191,18 @@ export default function AdminPage() {
   const load = React.useCallback(async () => {
     if (!token) return;
     try {
-      const [s, u, i, m] = await Promise.all([
+      const [s, u, i, m, b] = await Promise.all([
         getAdminStats(token),
         listAdminUsers(token),
         listAdminInstances(token),
         getAdminMonitor(token),
+        listBackups(token),
       ]);
       setStats(s);
       setUsers(u);
       setInstances(i);
       setMonitor(m);
+      setBackups(b);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to load admin data");
     } finally {
@@ -287,6 +297,33 @@ export default function AdminPage() {
     }
   }
 
+  async function handleBackup() {
+    setBackingUp(true);
+    try {
+      const info = await createBackup(token);
+      setBackups((prev) => [info, ...prev]);
+      toast.success(`Backup created (${formatBytes(info.size)})`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to create backup");
+    } finally {
+      setBackingUp(false);
+    }
+  }
+
+  async function handleDownload(name: string) {
+    try {
+      const blob = await downloadBackup(name, token);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = name;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to download backup");
+    }
+  }
+
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -314,6 +351,7 @@ export default function AdminPage() {
           <TabsTrigger value="members">Members ({users.length})</TabsTrigger>
           <TabsTrigger value="instances">Instances ({instances.length})</TabsTrigger>
           <TabsTrigger value="monitor">Monitor</TabsTrigger>
+          <TabsTrigger value="backup">Backup</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
@@ -697,6 +735,81 @@ export default function AdminPage() {
                   </Card>
                 </div>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="backup" className="space-y-6">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <Archive className="h-4 w-4" /> Backups
+              </CardTitle>
+              <CardDescription className="text-xs">
+                A full snapshot of the platform database and the physical GTSDB
+                data directory (WAL files + users.json), stored under
+                <code className="mx-1 font-mono">cloud/data/backups</code>.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <div className="text-sm">
+                  <div className="font-medium">Take a backup now</div>
+                  <div className="text-xs text-muted-foreground">
+                    Checkpoints the SQLite WAL, then archives everything into a
+                    timestamped .zip.
+                  </div>
+                </div>
+                <Button size="sm" onClick={handleBackup} disabled={backingUp}>
+                  {backingUp ? (
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Archive className="mr-1.5 h-3.5 w-3.5" />
+                  )}
+                  Backup now
+                </Button>
+              </div>
+
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Size</TableHead>
+                    <TableHead>Created</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {backups.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
+                        No backups yet.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    backups.map((b) => (
+                      <TableRow key={b.name}>
+                        <TableCell className="font-mono text-xs">{b.name}</TableCell>
+                        <TableCell className="text-sm">{formatBytes(b.size)}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {new Date(b.createdAt).toLocaleString()}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => handleDownload(b.name)}
+                            aria-label="Download backup"
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
             </CardContent>
           </Card>
         </TabsContent>

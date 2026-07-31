@@ -85,6 +85,8 @@ export interface PlatformUser {
   photoURL: string | null;
   provider: "firebase" | "demo";
   plan: PlanId;
+  /** Stripe customer id (set once billing is wired). */
+  stripeCustomerId?: string;
   createdAt: string;
   lastSeenAt: string;
 }

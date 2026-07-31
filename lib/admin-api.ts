@@ -105,6 +105,34 @@ export async function getAdminMonitor(token: string): Promise<AdminMonitor> {
   return request<AdminMonitor>("/api/admin/monitor", { token });
 }
 
+// --- Backups ---------------------------------------------------------------
+
+export interface BackupInfo {
+  name: string;
+  size: number;
+  createdAt: string;
+}
+
+export async function createBackup(token: string): Promise<BackupInfo> {
+  return request<BackupInfo>("/api/admin/backup", { method: "POST", token });
+}
+
+export async function listBackups(token: string): Promise<BackupInfo[]> {
+  return request<BackupInfo[]>("/api/admin/backups", { token });
+}
+
+/** Download a backup as a Blob (caller triggers the browser save). */
+export async function downloadBackup(
+  name: string,
+  token: string
+): Promise<Blob> {
+  const res = await fetch(`/api/admin/backups/${encodeURIComponent(name)}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+  if (!res.ok) throw new AdminApiError(res.status, "Failed to download backup");
+  return res.blob();
+}
+
 // --- Users ---------------------------------------------------------------
 
 export async function listAdminUsers(token: string): Promise<AdminUser[]> {
