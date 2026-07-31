@@ -37,6 +37,9 @@ next-env.d.ts
 /data/*.json
 !/data/.gitkeep
 
+# managed GTSDB binary (built by `npm run gtsdb:build`)
+/bin/*.exe
+
 # IDE
 .vscode/*
 !.vscode/extensions.json

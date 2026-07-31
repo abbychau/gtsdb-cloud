@@ -40,14 +40,25 @@ cp .env.local.example .env.local
 # ... fill in your Firebase web app config and GTSDB_ADMIN_TOKEN ...
 
 # 3. Run the whole stack together (portal + managed GTSDB)
-npm run dev:all
-# -> portal  http://localhost:13000   ·   GTSDB  http://localhost:5556
+npm run dev
+# -> portal  http://localhost:13000   ·   GTSDB  http://localhost:5555/5556
 ```
 
-`npm run dev:all` starts the Next.js portal **and** the shared, multi-tenant
-GTSDB server (via `gtsdb.local.ini`) together using `concurrently` — Ctrl+C
-stops both. Use `npm run dev` for the portal alone, or `npm run start:all` for
-the built app + GTSDB.
+`npm run dev` (or `npm run start` for the production build) boots the Next.js
+portal **and** the shared, multi-tenant GTSDB server via a **custom Next
+server** (`server.js`) — the portal spawns `bin/gtsdb-dev.exe` on boot and
+tears it down on shutdown, so both always go on/off together (no `concurrently`
+needed). Ctrl+C stops both.
+
+- `npm run dev` → development portal (HMR) + managed GTSDB
+- `npm run start` → production build + managed GTSDB
+- `npm run build` → `next build` only
+- `npm run gtsdb:build` → compile `bin/gtsdb-dev.exe` from the GTSDB repo root
+- `npm run gtsdb:stop` → force-kill a stray `gtsdb-dev.exe`
+
+Env knobs: set `GTSDB_MANAGED=false` to disable process management, or
+`GTSDB_INI=<file>` to pick a different INI for the managed server. If a GTSDB
+server is already listening on :5556, the portal skips spawning a duplicate.
 
 Open the app, sign in, click **New instance** — the platform provisions a real,
 isolated tenant namespace (GTSDB user) on the shared server via `adduser`, and
@@ -56,6 +67,9 @@ endpoints (`GTSDB_PUBLIC_HTTP_URL` / `GTSDB_PUBLIC_TCP_URL`).
 
 ### Managing the shared GTSDB server
 
+- The portal **owns** the GTSDB process: `server.js` spawns `bin/gtsdb-dev.exe`
+  (working dir = repo root, INI = `gtsdb.local.ini`) on startup and kills it on
+  shutdown, so the cloud GTSDB goes on/off together with the Next.js portal.
 - The platform manages **one** GTSDB server on behalf of all users. Each
   platform instance = one GTSDB user (tenant namespace) created with `adduser`,
   isolated automatically (tenants see their own folder + the shared `root/`).
