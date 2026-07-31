@@ -58,6 +58,20 @@ export default function BillingPage() {
     if (!authToken) return;
     setBusy(target);
     try {
+      // Paid → Free with Stripe: cancel the subscription too (stops billing).
+      if (target === "free" && stripeEnabled && plan !== "free") {
+        const res = await fetch("/api/billing/cancel", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${authToken}` },
+        });
+        const data = (await res.json().catch(() => null)) as { error?: string } | null;
+        if (!res.ok) {
+          throw new Error(data?.error ?? "Failed to cancel subscription");
+        }
+        toast.success("Downgraded to Free — subscription cancelled.");
+        refresh();
+        return;
+      }
       // Free downgrades (and all plan changes without Stripe) keep the demo flow.
       if (target === "free" || !stripeEnabled) {
         await setPlan(target, authToken);
