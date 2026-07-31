@@ -46,6 +46,10 @@ export const POST = handle(async (req: NextRequest) => {
     mode: "subscription",
     line_items: [{ price: priceId, quantity: 1 }],
     metadata: { uid: user.uid, plan },
+    // Stamp the uid/plan onto the Subscription itself (not just the session)
+    // so webhook events like customer.subscription.deleted can resolve the
+    // platform user directly from sub.metadata.uid without a customer lookup.
+    subscription_data: { metadata: { uid: user.uid, plan } },
     success_url: `${origin}/dashboard/billing?success=1`,
     cancel_url: `${origin}/dashboard/billing?cancel=1`,
     // Make sure the plan id is reflected so downgrades/upgrades match the UI.
