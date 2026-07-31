@@ -45,3 +45,43 @@ export function getPriceId(plan: PlanId): string {
   if (plan === "team") return process.env.STRIPE_PRICE_TEAM || "";
   return "";
 }
+
+export interface SubscriptionInfo {
+  id: string;
+  status: string;
+  cancelAtPeriodEnd: boolean;
+  currentPeriodEnd: string | null;
+}
+
+// stripe v22 types omit `current_period_end` on the Subscription response even
+// though the API returns it. Read it defensively, falling back to the first
+// subscription item (which IS typed) when absent.
+function subscriptionPeriodEnd(sub: Stripe.Subscription): number | null {
+  const raw = sub as Stripe.Subscription & { current_period_end?: number | null };
+  if (typeof raw.current_period_end === "number") return raw.current_period_end;
+  const item = sub.items?.data?.[0] as { current_period_end?: number } | undefined;
+  return typeof item?.current_period_end === "number" ? item.current_period_end : null;
+}
+
+/** Find the user's active/billable subscription, normalized for the UI. */
+export async function getActiveSubscription(
+  stripe: Stripe,
+  customerId: string
+): Promise<SubscriptionInfo | null> {
+  const subs = await stripe.subscriptions.list({
+    customer: customerId,
+    status: "all",
+    limit: 100,
+  });
+  const active = subs.data.find((s) =>
+    ["active", "trialing", "past_due", "unpaid"].includes(s.status)
+  );
+  if (!active) return null;
+  const periodEnd = subscriptionPeriodEnd(active);
+  return {
+    id: active.id,
+    status: active.status,
+    cancelAtPeriodEnd: active.cancel_at_period_end,
+    currentPeriodEnd: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
+  };
+}

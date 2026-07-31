@@ -1,9 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { requireUser, handle, HttpError } from "@/lib/route-utils";
-import { getUser, setUserStripeCustomer } from "@/lib/store";
+import { getUser, setUserPlan, setUserStripeCustomer } from "@/lib/store";
 import { getPortalPublicUrl } from "@/lib/gtsdb-config";
+import { syncUserQuotas } from "@/lib/gtsdb-server";
 import { PLAN_ORDER } from "@/lib/plans";
-import { getPriceId, getStripe, isStripeConfigured } from "@/lib/stripe";
+import { getActiveSubscription, getPriceId, getStripe, isStripeConfigured } from "@/lib/stripe";
 import type { PlanId } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -41,6 +42,26 @@ export const POST = handle(async (req: NextRequest) => {
   // Public, browser-reachable origin — NOT req.nextUrl.origin (behind the
   // Cloudflare tunnel that resolves to http://0.0.0.0:13000).
   const origin = getPortalPublicUrl() || req.nextUrl.origin;
+
+  const active = await getActiveSubscription(stripe, customerId);
+  if (active) {
+    if (active.cancelAtPeriodEnd) {
+      // Scheduled to cancel at period end → reactivate and resume billing
+      // instead of creating a duplicate subscription (no double charge).
+      await stripe.subscriptions.update(active.id, { cancel_at_period_end: false });
+      await setUserPlan(user.uid, plan);
+      await syncUserQuotas(user.uid, plan).catch(() => undefined);
+      return NextResponse.json({ reactivated: true });
+    }
+    // Already on a paid subscription — route plan changes through the portal so
+    // Stripe prorates instead of stacking a second subscription.
+    const portal = await stripe.billingPortal.sessions.create({
+      customer: customerId,
+      return_url: `${origin}/dashboard/billing`,
+    });
+    return NextResponse.json({ url: portal.url, portal: true });
+  }
+
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
     mode: "subscription",

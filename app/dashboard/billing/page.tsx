@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Check, CreditCard, Loader2, Receipt, Sparkles } from "lucide-react";
+import { Check, CreditCard, Info, Loader2, Receipt, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
 import { PLANS, PLAN_ORDER, getPlan } from "@/lib/plans";
@@ -50,36 +50,83 @@ export default function BillingPage() {
   const [busy, setBusy] = React.useState<PlanId | null>(null);
   const [showInvoices, setShowInvoices] = React.useState(false);
   const [portalBusy, setPortalBusy] = React.useState(false);
+  const [subInfo, setSubInfo] = React.useState<{
+    cancelAtPeriodEnd: boolean;
+    currentPeriodEnd: string | null;
+  } | null>(null);
 
   const totalPoints = instances.reduce((s, i) => s + i.usage.points, 0);
   const planDef = getPlan(plan);
+  // True when the user cancelled and is waiting for the billing period to end.
+  const scheduled = stripeEnabled && subInfo?.cancelAtPeriodEnd === true && plan !== "free";
+
+  async function refreshSub() {
+    if (!stripeEnabled || !authToken) return;
+    try {
+      const res = await fetch("/api/billing/status", {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      if (res.ok) {
+        const data = (await res.json()) as {
+          subscription: { cancelAtPeriodEnd: boolean; currentPeriodEnd: string | null } | null;
+        };
+        setSubInfo(data.subscription ?? null);
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  React.useEffect(() => {
+    if (!stripeEnabled || !authToken) return;
+    let active = true;
+    fetch("/api/billing/status", { headers: { Authorization: `Bearer ${authToken}` } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { subscription?: { cancelAtPeriodEnd: boolean; currentPeriodEnd: string | null } } | null) => {
+        if (active) setSubInfo(d?.subscription ?? null);
+      })
+      .catch(() => {
+        if (active) setSubInfo(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [authToken]);
 
   async function handleSwitch(target: PlanId) {
     if (!authToken) return;
     setBusy(target);
     try {
-      // Paid → Free with Stripe: cancel the subscription too (stops billing).
-      if (target === "free" && stripeEnabled && plan !== "free") {
-        const res = await fetch("/api/billing/cancel", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${authToken}` },
-        });
-        const data = (await res.json().catch(() => null)) as { error?: string } | null;
-        if (!res.ok) {
-          throw new Error(data?.error ?? "Failed to cancel subscription");
-        }
-        toast.success("Downgraded to Free — subscription cancelled.");
-        refresh();
-        return;
-      }
-      // Free downgrades (and all plan changes without Stripe) keep the demo flow.
-      if (target === "free" || !stripeEnabled) {
+      // No Stripe configured → demo plan switch.
+      if (!stripeEnabled) {
         await setPlan(target, authToken);
         toast.success(`Switched to ${getPlan(target).name} plan`);
         refresh();
         return;
       }
-      // Paid upgrade → real Stripe Checkout.
+      // Downgrade to Free → schedule Stripe cancellation at period end.
+      if (target === "free") {
+        const res = await fetch("/api/billing/cancel", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${authToken}` },
+        });
+        const data = (await res.json().catch(() => null)) as {
+          currentPeriodEnd?: string | null;
+          error?: string;
+        } | null;
+        if (!res.ok) throw new Error(data?.error ?? "Failed to cancel subscription");
+        if (data?.currentPeriodEnd) {
+          toast.success(
+            "Subscription cancelled — you stay on your plan until the end of the billing period, then auto-downgrade to Free."
+          );
+        } else {
+          toast.success("Downgraded to Free plan");
+        }
+        await refreshSub();
+        refresh();
+        return;
+      }
+      // Paid upgrade / reactivation → Stripe.
       const res = await fetch("/api/billing/checkout", {
         method: "POST",
         headers: {
@@ -88,11 +135,21 @@ export default function BillingPage() {
         },
         body: JSON.stringify({ plan: target }),
       });
-      const data = (await res.json().catch(() => null)) as { url?: string; error?: string } | null;
-      if (!res.ok || !data?.url) {
+      const data = (await res.json().catch(() => null)) as {
+        url?: string;
+        reactivated?: boolean;
+        error?: string;
+      } | null;
+      if (!res.ok || (!data?.url && !data?.reactivated)) {
         throw new Error(data?.error ?? "Failed to start checkout");
       }
-      window.location.href = data.url;
+      if (data.reactivated) {
+        toast.success(`${getPlan(target).name} reactivated — billing resumed.`);
+        await refreshSub();
+        refresh();
+        return;
+      }
+      window.location.href = data.url as string;
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to update plan");
     } finally {
@@ -128,6 +185,30 @@ export default function BillingPage() {
           Manage your plan, usage and invoices.
         </p>
       </div>
+
+      {/* Pending cancellation — keeps the paid plan until period end */}
+      {scheduled && subInfo?.currentPeriodEnd && (
+        <Card className="border-destructive/50">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-sm text-destructive">
+              <Info className="h-4 w-4" /> Subscription cancelled
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground">
+            Your <span className="font-medium text-foreground">{planDef.name}</span>{" "}
+            plan stays active until{" "}
+            <span className="font-medium text-foreground">
+              {new Date(subInfo.currentPeriodEnd).toLocaleDateString()}
+            </span>{" "}
+            (end of your billing period). After that you&apos;ll automatically be
+            downgraded to the Free plan. You can{" "}
+            <span className="font-medium text-foreground">
+              reactivate {planDef.name}
+            </span>{" "}
+            anytime before then to keep your plan and resume billing.
+          </CardContent>
+        </Card>
+      )}
 
       {/* Current plan summary */}
       <div className="grid gap-4 md:grid-cols-3">
@@ -261,13 +342,17 @@ export default function BillingPage() {
                   <Button
                     className="w-full"
                     variant={current ? "outline" : p.highlighted ? "default" : "outline"}
-                    disabled={current || busy !== null}
+                    disabled={
+                      busy !== null || (current && !(scheduled && p.priceMonthly > 0))
+                    }
                     onClick={() => handleSwitch(id)}
                   >
                     {busy === id ? (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : null}
-                    {current
+                    {current && scheduled && p.priceMonthly > 0
+                      ? `Reactivate ${p.name}`
+                      : current
                       ? "Current plan"
                       : p.priceMonthly === 0
                       ? "Downgrade to Free"
@@ -313,7 +398,7 @@ export default function BillingPage() {
       <Separator />
       <p className="text-xs text-muted-foreground">
         {stripeEnabled
-          ? "Billing is handled by Stripe Checkout. Cancel or update your subscription from the billing portal."
+          ? "Billing is handled by Stripe Checkout. Cancelling a subscription keeps your plan active until the end of the billing period, then automatically downgrades you to Free. Reactivate anytime before then to resume billing."
           : "Billing is a demonstration of the freemium flow. Plans and invoices are simulated — no real charges are made. Set STRIPE_SECRET_KEY to enable real payments."}
       </p>
     </div>
