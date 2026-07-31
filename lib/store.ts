@@ -44,6 +44,8 @@ async function load(): Promise<StoreShape> {
     if (!inst.connectionString) inst.connectionString = buildConnectionString(inst.slug);
     if (inst.usage?.keys === undefined) inst.usage.keys = 0;
     if (inst.usage?.points === undefined) inst.usage.points = 0;
+    // A sandbox instance is always live — never leave it stuck offline.
+    if (inst.simulate && inst.status === "offline") inst.status = "active";
   }
   return cache;
 }

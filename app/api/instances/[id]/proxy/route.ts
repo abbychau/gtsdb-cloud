@@ -115,14 +115,15 @@ export const POST = handle(
       }
     }
 
-    // 2. Fall back to the built-in simulator when enabled.
+    // 2. Fall back to the built-in simulator when enabled (instance stays active).
     if (inst.simulate) {
       const simulated = simulateOperation(inst.id, body);
       await touchInstance(
         inst.id,
         isWrite
           ? { writes: 1, points: impact.points, keys: impact.newKeys }
-          : { reads: 1 }
+          : { reads: 1 },
+        "active"
       );
       return NextResponse.json(simulated);
     }

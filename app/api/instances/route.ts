@@ -99,14 +99,15 @@ export const POST = handle(async (req: NextRequest) => {
     connectionString,
     region,
     plan,
-    status: healthy ? "active" : simulate ? "provisioning" : "offline",
+    // Sandbox instances are live immediately; otherwise require a healthy backend.
+    status: healthy || simulate ? "active" : "offline",
     endpoint,
     token,
     simulate,
     createdAt: now,
     updatedAt: now,
     lastActiveAt: now,
-    lastHealthyAt: healthy ? now : null,
+    lastHealthyAt: healthy || simulate ? now : null,
     serverInfo: null,
     usage: { points: 0, keys: 0, reads: 0, writes: 0 },
   };

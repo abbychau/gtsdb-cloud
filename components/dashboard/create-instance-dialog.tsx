@@ -140,10 +140,12 @@ export function CreateInstanceDialog({
           <div className="flex items-center justify-between rounded-lg border p-3">
             <div>
               <Label htmlFor="simulate" className="text-sm font-medium">
-                Enable sandbox simulation
+                Sandbox simulation
               </Label>
               <p className="text-xs text-muted-foreground">
-                Serve demo data when the endpoint is unreachable.
+                Keep ON for a live demo instance (instant demo data). Turn OFF
+                only when connecting your own GTSDB backend, or the instance
+                stays offline until one is configured.
               </p>
             </div>
             <Switch

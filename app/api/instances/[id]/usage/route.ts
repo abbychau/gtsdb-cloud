@@ -48,8 +48,8 @@ export const GET = handle(
       });
     }
 
-    // Live server unreachable — reconcile from the sandbox simulator when enabled
-    // so usage + quota stay accurate even without a connected backend.
+    // Live server unreachable — reconcile from the sandbox simulator when enabled.
+    // A sandbox instance is always live, so mark it active.
     if (inst.simulate) {
       const counts = readKeyCounts(
         simulateOperation(inst.id, { operation: "idswithcount" }) as GtsdbResponse
@@ -59,11 +59,11 @@ export const GET = handle(
         keys: counts.length,
         points: counts.reduce((sum, c) => sum + c.count, 0),
       };
-      await touchInstance(inst.id, {});
+      await touchInstance(inst.id, {}, "active");
       return NextResponse.json({
         usage,
         serverInfo: inst.serverInfo ?? null,
-        status: inst.status,
+        status: "active",
       });
     }
 
