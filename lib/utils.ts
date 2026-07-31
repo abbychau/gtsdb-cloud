@@ -81,7 +81,10 @@ export function generateConnectionToken(): string {
 
 /** Build the public connection string for an instance slug. */
 export function buildConnectionString(slug: string): string {
-  return `https://${slug}.gtsdb.cloud`;
+  // GTSDB_PUBLIC_BASE_URL is the public base the platform is served on
+  // (e.g. https://gtsdb-cloud.abby.md). Defaults to the gtsdb.cloud domain.
+  const base = (process.env.GTSDB_PUBLIC_BASE_URL || "https://gtsdb.cloud").replace(/\/+$/, "");
+  return `${base}/${slug}`;
 }
 
 /** Make a slug unique against a set of existing slugs (e.g. "cpu", "cpu-2"). */
