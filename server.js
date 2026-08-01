@@ -23,6 +23,12 @@ const dev = process.argv.includes("--dev") || process.env.NODE_ENV === "developm
 const hostname = "0.0.0.0";
 const port = parseInt(process.env.PORT, 10) || (dev ? 12999 : 13000);
 
+// Keep dev and prod builds in SEPARATE directories (dev -> .next-dev, prod ->
+// .next) so a running dev server can never clobber the production build the
+// way a shared .next directory could (prod on :13000 + dev on :12999 both
+// live in this repo and previously fought over .next, causing 500s).
+process.env.NEXT_DIST_DIR = dev ? ".next-dev" : ".next";
+
 const app = next({ dev, hostname, port, dir: __dirname });
 const handle = app.getRequestHandler();
 

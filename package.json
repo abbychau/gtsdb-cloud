@@ -8,7 +8,7 @@
     "dev": "npm run gtsdb:build && node server.js --dev",
     "build": "next build",
     "start": "npm run gtsdb:build && next build && node server.js",
-    "deploy": "(winpm2 stop ecosystem.config.json >nul 2>nul && echo [deploy] stopped || echo [deploy] nothing to stop) && npm run gtsdb:build && npm run build && winpm2 start ecosystem.config.json",
+    "deploy": "(winpm2 stop ecosystem.config.json >nul 2>nul && echo [deploy] stopped || echo [deploy] nothing to stop) && npm run gtsdb:build && (if exist .next rmdir /s /q .next) && npm run build && winpm2 start ecosystem.config.json",
     "lint": "next lint",
     "test": "vitest run",
     "test:watch": "vitest",
