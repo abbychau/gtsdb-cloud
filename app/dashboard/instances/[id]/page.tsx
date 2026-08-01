@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   BarChart3,
   Code2,
+  ExternalLink,
   KeyRound,
   LayoutDashboard,
   Network,
@@ -14,6 +15,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { useInstance } from "@/hooks/use-instance";
+import { adminDeepLink } from "@/lib/utils";
 import type { PlatformInstance } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -122,9 +124,16 @@ export default function InstanceDetailPage() {
               <span className="font-mono text-xs">{instance.connectionString}</span>
             </div>
           </div>
-          <Button variant="outline" size="sm" onClick={refresh}>
-            <Loader2 className="mr-1.5 h-3.5 w-3.5" /> Sync usage
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button asChild variant="outline" size="sm">
+              <a href={adminDeepLink(instance)} target="_blank" rel="noreferrer">
+                <ExternalLink className="mr-1.5 h-3.5 w-3.5" /> gtsdb-admin
+              </a>
+            </Button>
+            <Button variant="outline" size="sm" onClick={refresh}>
+              <Loader2 className="mr-1.5 h-3.5 w-3.5" /> Sync usage
+            </Button>
+          </div>
         </div>
       </div>
 

@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowUpRight, Database, MoreHorizontal, Trash2, RefreshCw } from "lucide-react";
+import { ArrowUpRight, Database, ExternalLink, MoreHorizontal, Trash2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { deleteInstance } from "@/lib/api";
-import { formatCompact, formatDate } from "@/lib/utils";
+import { adminDeepLink, formatCompact, formatDate } from "@/lib/utils";
 import type { PlatformInstance } from "@/lib/types";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -87,6 +87,11 @@ export function InstanceCard({
               <Link href={`/dashboard/instances/${instance.id}`}>
                 <ArrowUpRight className="mr-2 h-4 w-4" /> Open
               </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <a href={adminDeepLink(instance)} target="_blank" rel="noreferrer">
+                <ExternalLink className="mr-2 h-4 w-4" /> Open in gtsdb-admin
+              </a>
             </DropdownMenuItem>
             <AlertDialog>
               <AlertDialogTrigger asChild>

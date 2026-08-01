@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import type { PlatformInstance } from "./types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -99,4 +100,28 @@ export function uniqueSlug(base: string, existingSlugs: string[]): string {
   let n = 2;
   while (used.has(`${base}-${n}`)) n++;
   return `${base}-${n}`;
+}
+
+/** Base URL of the gtsdb-admin app (a separate deployment). */
+export function getAdminBaseUrl(): string {
+  return (process.env.NEXT_PUBLIC_ADMIN_URL || "http://localhost:3000").replace(
+    /\/+$/,
+    ""
+  );
+}
+
+/** Deep-link to gtsdb-admin, pre-connected to this instance. */
+export function adminDeepLink(
+  instance: Pick<
+    PlatformInstance,
+    "external" | "connectionString" | "endpoint" | "token"
+  >
+): string {
+  // Managed instances: connect via the public HTTP endpoint + tenant token.
+  // Self-hosted instances: connect directly to the user's own server.
+  const params = new URLSearchParams({
+    apiurl: instance.external ? instance.endpoint : instance.connectionString,
+  });
+  if (instance.token) params.set("token", instance.token);
+  return `${getAdminBaseUrl()}/?${params.toString()}`;
 }
