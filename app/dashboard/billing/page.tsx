@@ -250,20 +250,60 @@ export default function BillingPage() {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-sm">
-              <Receipt className="h-4 w-4" /> Payment method
+              <Receipt className="h-4 w-4" /> Payment & billing
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
             <div className="rounded-lg border p-3">
-              <div className="flex items-center gap-2">
-                <CreditCard className="h-4 w-4 text-muted-foreground" />
-                <span className="text-muted-foreground">No card on file</span>
-              </div>
-              <p className="mt-1 text-xs text-muted-foreground">
-                You&apos;re on the free plan — no payment required.
+              {stripeEnabled && subInfo ? (
+                subInfo.cancelAtPeriodEnd ? (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="h-4 w-4 text-muted-foreground" />
+                      <span>
+                        {planDef.name} · cancels at period end
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Active until{" "}
+                      {subInfo.currentPeriodEnd
+                        ? new Date(subInfo.currentPeriodEnd).toLocaleDateString()
+                        : "period end"}
+                      , then auto-downgrades to Free.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="h-4 w-4 text-muted-foreground" />
+                      <span>{planDef.name} subscription active</span>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {subInfo.currentPeriodEnd
+                        ? `Renews on ${new Date(
+                            subInfo.currentPeriodEnd
+                          ).toLocaleDateString()}.`
+                        : "Billing managed in the Stripe portal."}
+                    </p>
+                  </>
+                )
+              ) : (
+                <>
+                  <div className="flex items-center gap-2">
+                    <CreditCard className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-muted-foreground">Free plan</span>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    No payment required on the Free plan.
+                  </p>
+                </>
+              )}
+              <p className="mt-2 text-xs text-muted-foreground">
+                We never store your card details — payments are processed
+                securely by Stripe.
               </p>
             </div>
-            {stripeEnabled && plan !== "free" ? (
+            {stripeEnabled ? (
               <Button
                 variant="outline"
                 size="sm"
@@ -274,7 +314,7 @@ export default function BillingPage() {
                 {portalBusy ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : null}
-                Manage billing
+                Manage billing (card & invoices)
               </Button>
             ) : (
               <Button
