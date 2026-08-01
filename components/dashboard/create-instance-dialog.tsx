@@ -30,13 +30,8 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const REGIONS: Array<{ value: InstanceRegion; label: string }> = [
-  { value: "auto", label: "Auto (nearest)" },
-  { value: "asia-east1", label: "asia-east1 (Taiwan)" },
-  { value: "asia-northeast1", label: "asia-northeast1 (Tokyo)" },
-  { value: "europe-west1", label: "europe-west1 (Belgium)" },
-  { value: "us-central1", label: "us-central1 (Iowa)" },
-  { value: "us-east1", label: "us-east1 (S. Carolina)" },
-  { value: "local", label: "Local / self-hosted" },
+  { value: "auto", label: "Auto" },
+  { value: "self-hosted", label: "Self hosted" },
 ];
 
 export function CreateInstanceDialog({
@@ -57,10 +52,10 @@ export function CreateInstanceDialog({
 
   const [name, setName] = React.useState("");
   const [region, setRegion] = React.useState<InstanceRegion>("auto");
-  const [mode, setMode] = React.useState<"managed" | "external">("managed");
   const [endpoint, setEndpoint] = React.useState("");
   const [serverToken, setServerToken] = React.useState("");
 
+  const external = region === "self-hosted";
   const planDef = getPlan(plan);
   const atLimit = !canCreateInstance(plan, managedCount);
   const extAtLimit = externalCount >= planDef.maxExternalInstances;
@@ -71,22 +66,21 @@ export function CreateInstanceDialog({
     setError(null);
     setBusy(true);
     try {
-      const input =
-        mode === "external"
-          ? { name, region, endpoint: endpoint.trim(), token: serverToken.trim() }
-          : { name, region };
+      const input = external
+        ? { name, region, endpoint: endpoint.trim(), token: serverToken.trim() }
+        : { name, region };
       const inst = await createInstance(input, authToken || "");
       toast.success(
-        mode === "external"
+        external
           ? `Connected to ${inst.connectionString}`
           : `Instance "${inst.name}" created`,
-        { description: mode === "external" ? inst.name : `Connection: ${inst.connectionString}` }
+        { description: external ? inst.name : `Connection: ${inst.connectionString}` }
       );
       setOpen(false);
       setName("");
+      setRegion("auto");
       setEndpoint("");
       setServerToken("");
-      setMode("managed");
       onCreated(inst);
     } catch (err) {
       if (err instanceof ApiError) setError(err.message);
@@ -113,7 +107,7 @@ export function CreateInstanceDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {mode === "managed" && atLimit && (
+        {!external && atLimit && (
           <Alert variant="destructive">
             <AlertDescription>
               Your {planDef.name} plan allows up to {planDef.maxInstances} managed
@@ -121,7 +115,7 @@ export function CreateInstanceDialog({
             </AlertDescription>
           </Alert>
         )}
-        {mode === "external" && extAtLimit && (
+        {external && extAtLimit && (
           <Alert variant="destructive">
             <AlertDescription>
               Your {planDef.name} plan allows up to {planDef.maxExternalInstances}{" "}
@@ -160,35 +154,7 @@ export function CreateInstanceDialog({
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label>Connection type</Label>
-            <div className="grid grid-cols-2 gap-2">
-              <Button
-                type="button"
-                variant={mode === "managed" ? "default" : "outline"}
-                onClick={() => setMode("managed")}
-              >
-                Managed
-              </Button>
-              <Button
-                type="button"
-                variant={mode === "external" ? "default" : "outline"}
-                onClick={() => setMode("external")}
-                disabled={extAtLimit}
-              >
-                My own GTSDB
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {mode === "external"
-                ? "Connect to your own GTSDB by IP or domain. "
-                : "Managed instances run on the shared GTSDB server. "}
-              Self-hosted connections: {externalCount} / {planDef.maxExternalInstances}
-              {extAtLimit ? " (limit reached — upgrade to add more)" : ""}
-            </p>
-          </div>
-
-          {mode === "external" && (
+          {external ? (
             <>
               <div className="space-y-2">
                 <Label htmlFor="endpoint">GTSDB address</Label>
@@ -214,7 +180,15 @@ export function CreateInstanceDialog({
                   onChange={(e) => setServerToken(e.target.value)}
                 />
               </div>
+              <p className="text-xs text-muted-foreground">
+                Self-hosted connections: {externalCount} / {planDef.maxExternalInstances}
+                {extAtLimit ? " (limit reached — upgrade to add more)" : ""}
+              </p>
             </>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Managed instances run on the shared GTSDB server.
+            </p>
           )}
 
           {error && (
@@ -229,7 +203,7 @@ export function CreateInstanceDialog({
             </Button>
             <Button
               type="submit"
-              disabled={busy || (mode === "managed" ? atLimit : extAtLimit)}
+              disabled={busy || (external ? extAtLimit : atLimit)}
             >
               {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Create instance

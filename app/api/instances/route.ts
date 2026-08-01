@@ -26,15 +26,7 @@ import type {
 
 export const runtime = "nodejs";
 
-const REGIONS: InstanceRegion[] = [
-  "auto",
-  "asia-east1",
-  "asia-northeast1",
-  "europe-west1",
-  "us-central1",
-  "us-east1",
-  "local",
-];
+const REGIONS: InstanceRegion[] = ["auto", "self-hosted"];
 
 const NAME_RE = /^[\w\s\-.]{2,40}$/;
 
@@ -95,7 +87,7 @@ export const POST = handle(async (req: NextRequest) => {
   // "Connect my own GTSDB": the user supplies an IP/domain (+ optional token)
   // and the platform proxies to their server instead of provisioning a tenant
   // on the shared managed server.
-  const external = Boolean(body.endpoint?.trim());
+  const external = Boolean(body.endpoint?.trim()) || body.region === "self-hosted";
 
   if (external) {
     const extCount = existing.filter((i) => i.external).length;

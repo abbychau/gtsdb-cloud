@@ -10,12 +10,7 @@ export type InstanceStatus =
 
 export type InstanceRegion =
   | "auto"
-  | "asia-east1"
-  | "asia-northeast1"
-  | "europe-west1"
-  | "us-central1"
-  | "us-east1"
-  | "local";
+  | "self-hosted";
 
 export interface AuthUser {
   uid: string;

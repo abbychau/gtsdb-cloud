@@ -34,13 +34,8 @@ import {
 } from "@/components/ui/alert-dialog";
 
 const REGIONS: Array<{ value: InstanceRegion; label: string }> = [
-  { value: "auto", label: "Auto (nearest)" },
-  { value: "asia-east1", label: "asia-east1 (Taiwan)" },
-  { value: "asia-northeast1", label: "asia-northeast1 (Tokyo)" },
-  { value: "europe-west1", label: "europe-west1 (Belgium)" },
-  { value: "us-central1", label: "us-central1 (Iowa)" },
-  { value: "us-east1", label: "us-east1 (S. Carolina)" },
-  { value: "local", label: "Local / self-hosted" },
+  { value: "auto", label: "Auto" },
+  { value: "self-hosted", label: "Self hosted" },
 ];
 
 export function InstanceSettings({
