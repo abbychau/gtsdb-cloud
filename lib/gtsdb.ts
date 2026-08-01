@@ -137,6 +137,10 @@ export const ops = {
   idsWithCount(): GtsdbRequest {
     return { operation: "idswithcount" };
   },
+  /** Stored-points count for the instance's OWN namespace only (billing). */
+  ownIdsWithCount(): GtsdbRequest {
+    return { operation: "idswithcount-own" };
+  },
   serverInfo(): GtsdbRequest {
     return { operation: "serverinfo" };
   },

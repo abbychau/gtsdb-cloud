@@ -26,7 +26,7 @@ export const GET = handle(
       const [infoRes, idsRes, countsRes] = await Promise.all([
         callGtsdb(inst.endpoint, inst.token, ops.serverInfo()),
         callGtsdb(inst.endpoint, inst.token, ops.ids()),
-        callGtsdb(inst.endpoint, inst.token, ops.idsWithCount()),
+        callGtsdb(inst.endpoint, inst.token, ops.ownIdsWithCount()),
       ]);
       const serverInfo = readServerInfo(infoRes.data as GtsdbResponse);
       const keys = readKeys(idsRes.data as GtsdbResponse);

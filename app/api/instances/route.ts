@@ -51,7 +51,7 @@ export const GET = handle(async (req: NextRequest) => {
     liveInstances = await Promise.all(
       instances.map(async (inst) => {
         if (!inst.namespace || !inst.token) return inst;
-        const res = await callGtsdb(base, inst.token, ops.idsWithCount());
+        const res = await callGtsdb(base, inst.token, ops.ownIdsWithCount());
         if (!res.ok) return inst;
         const counts = readKeyCounts(res.data as GtsdbResponse);
         const keys = counts.length;

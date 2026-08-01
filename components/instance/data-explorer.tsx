@@ -131,7 +131,8 @@ export function DataExplorer({ instance }: { instance: PlatformInstance }) {
     try {
       const res = await proxyOperation<GtsdbResponse>(instance.id, ops.idsWithCount(), token);
       if (res.success) {
-        setKeys(res.data as KeyCount[]);
+        // GTSDB may return data:null for a tenant with no own data yet.
+        setKeys(Array.isArray(res.data) ? (res.data as KeyCount[]) : []);
       } else {
         setKeys([]);
       }
