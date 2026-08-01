@@ -87,39 +87,84 @@ export function ConnectionPanel({
 
   return (
     <div className="max-w-2xl space-y-6">
-      {/* Managed endpoints */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-sm">
-            <Network className="h-4 w-4" /> Connection string
-          </CardTitle>
-          <CardDescription>
-            Your instance runs on the shared, multi-tenant GTSDB server. These
-            are the endpoints your SDKs should use.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center gap-2 rounded-lg border p-3">
-            <div className="min-w-0 flex-1">
-              <div className="text-xs text-muted-foreground">HTTP API</div>
-              <div className="truncate font-mono text-sm">{instance.connectionString}</div>
+      {instance.external ? (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <Server className="h-4 w-4" /> Your GTSDB server
+            </CardTitle>
+            <CardDescription>
+              Self-hosted connection — the platform proxies queries to your own
+              GTSDB server. Data stays on your server.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center gap-2 rounded-lg border p-3">
+              <div className="min-w-0 flex-1">
+                <div className="text-xs text-muted-foreground">HTTP endpoint</div>
+                <div className="truncate font-mono text-sm">{instance.connectionString}</div>
+              </div>
+              <CopyButton value={instance.connectionString} label="Copy HTTP endpoint" />
             </div>
-            <CopyButton value={instance.connectionString} label="Copy HTTP endpoint" />
-          </div>
-          <div className="flex items-center gap-2 rounded-lg border p-3">
-            <div className="min-w-0 flex-1">
-              <div className="text-xs text-muted-foreground">TCP (high-throughput)</div>
-              <div className="truncate font-mono text-sm">{instance.tcpConnectionString}</div>
-            </div>
-            <CopyButton value={instance.tcpConnectionString} label="Copy TCP endpoint" />
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Authenticate with your connection credential (below). GTSDB scopes
-            every request to your instance&apos;s namespace — other tenants are
-            isolated automatically.
-          </p>
-        </CardContent>
-      </Card>
+            <p className="text-xs text-muted-foreground">
+              Point your SDKs at this address (plus the token below, if your
+              server requires one). The platform only proxies and tracks usage —
+              it never stores your data.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          {/* Managed endpoints */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <Network className="h-4 w-4" /> Connection string
+              </CardTitle>
+              <CardDescription>
+                Your instance runs on the shared, multi-tenant GTSDB server. These
+                are the endpoints your SDKs should use.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center gap-2 rounded-lg border p-3">
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs text-muted-foreground">HTTP API</div>
+                  <div className="truncate font-mono text-sm">{instance.connectionString}</div>
+                </div>
+                <CopyButton value={instance.connectionString} label="Copy HTTP endpoint" />
+              </div>
+              <div className="flex items-center gap-2 rounded-lg border p-3">
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs text-muted-foreground">TCP (high-throughput)</div>
+                  <div className="truncate font-mono text-sm">{instance.tcpConnectionString}</div>
+                </div>
+                <CopyButton value={instance.tcpConnectionString} label="Copy TCP endpoint" />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Authenticate with your connection credential (below). GTSDB scopes
+                every request to your instance&apos;s namespace — other tenants are
+                isolated automatically.
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Managed server / tenant */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <Server className="h-4 w-4" /> Managed server
+              </CardTitle>
+              <CardDescription>
+                This instance is an isolated tenant on the shared GTSDB server.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <InfoRow label="Namespace" value={instance.namespace || "—"} />
+            </CardContent>
+          </Card>
+        </>
+      )}
 
       {/* Credential management */}
       <Card>
@@ -128,8 +173,9 @@ export function ConnectionPanel({
             <KeyRound className="h-4 w-4" /> Connection credential
           </CardTitle>
           <CardDescription>
-            Managed separately from the instance — rotate anytime to invalidate
-            the old token.
+            {instance.external
+              ? "The token for your own server. The platform cannot rotate it."
+              : "Managed separately from the instance — rotate anytime to invalidate the old token."}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -163,45 +209,32 @@ export function ConnectionPanel({
             )}
           </div>
 
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="outline" size="sm" disabled={!instance.token}>
-                <RefreshCw className="mr-1.5 h-3.5 w-3.5" /> Rotate credential
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Rotate connection credential?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  GTSDB will reset your tenant token — the current one is
-                  immediately invalidated and clients using it will be
-                  disconnected.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel disabled={rotating}>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleRotate} disabled={rotating}>
-                  {rotating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  Rotate
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </CardContent>
-      </Card>
-
-      {/* Managed server / tenant */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-sm">
-            <Server className="h-4 w-4" /> Managed server
-          </CardTitle>
-          <CardDescription>
-            This instance is an isolated tenant on the shared GTSDB server.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <InfoRow label="Namespace" value={instance.namespace || "—"} />
+          {!instance.external && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" size="sm" disabled={!instance.token}>
+                  <RefreshCw className="mr-1.5 h-3.5 w-3.5" /> Rotate credential
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Rotate connection credential?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    GTSDB will reset your tenant token — the current one is
+                    immediately invalidated and clients using it will be
+                    disconnected.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel disabled={rotating}>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleRotate} disabled={rotating}>
+                    {rotating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    Rotate
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
         </CardContent>
       </Card>
     </div>

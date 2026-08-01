@@ -14,6 +14,8 @@ export default function InstancesPage() {
   const { instances, plan, loading, refresh } = useInstances();
 
   const totalPoints = instances.reduce((s, i) => s + i.usage.points, 0);
+  const managedCount = instances.filter((i) => !i.external).length;
+  const externalCount = instances.length - managedCount;
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -26,7 +28,8 @@ export default function InstancesPage() {
         </div>
         <CreateInstanceDialog
           plan={plan}
-          instanceCount={instances.length}
+          managedCount={managedCount}
+          externalCount={externalCount}
           onCreated={refresh}
         />
       </div>
@@ -44,7 +47,8 @@ export default function InstancesPage() {
           action={
             <CreateInstanceDialog
               plan={plan}
-              instanceCount={0}
+              managedCount={0}
+              externalCount={externalCount}
               onCreated={refresh}
             />
           }

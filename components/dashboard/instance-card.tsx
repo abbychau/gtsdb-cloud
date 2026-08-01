@@ -12,6 +12,7 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button";
 import { PlanBadge } from "@/components/dashboard/plan-badge";
 import { ConnectionStatus } from "@/components/dashboard/connection-status";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -69,6 +70,7 @@ export function InstanceCard({
             <div className="mt-1 flex items-center gap-2">
               <ConnectionStatus status={instance.status} />
               <PlanBadge plan={instance.plan} />
+              {instance.external && <Badge variant="outline">Self-hosted</Badge>}
             </div>
           </div>
         </div>

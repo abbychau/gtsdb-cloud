@@ -117,6 +117,7 @@ function loadStore(): StoreShape {
     inst.connectionString = getPublicHttpUrl();
     inst.tcpConnectionString = getPublicTcpUrl();
     if (!inst.namespace) inst.namespace = "";
+    if (inst.external === undefined) inst.external = false;
     if (inst.usage?.keys === undefined) inst.usage.keys = 0;
     if (inst.usage?.points === undefined) inst.usage.points = 0;
     if (inst.usage?.reads === undefined) inst.usage.reads = 0;

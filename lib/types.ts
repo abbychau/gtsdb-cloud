@@ -111,6 +111,8 @@ export interface PlatformInstance {
   namespace: string;
   /** Connection credential for the tenant namespace, managed separately. */
   token: string;
+  /** True when this connects to the user's own GTSDB (self-hosted) instead of the shared managed server. */
+  external: boolean;
   createdAt: string;
   updatedAt: string;
   lastActiveAt: string;
@@ -125,6 +127,10 @@ export interface CreateInstanceInput {
   name: string;
   region?: InstanceRegion;
   plan?: PlanId;
+  /** Self-hosted: connect to the user's own GTSDB at this http(s) address (IP/domain). */
+  endpoint?: string;
+  /** Self-hosted: optional credential for their own server. */
+  token?: string;
 }
 
 export interface UpdateInstanceInput {
@@ -132,6 +138,7 @@ export interface UpdateInstanceInput {
   region?: InstanceRegion;
   plan?: PlanId;
   endpoint?: string;
+  token?: string;
   status?: InstanceStatus;
 }
 
@@ -143,6 +150,8 @@ export interface Plan {
   priceMonthly: number;
   priceYearly: number;
   maxInstances: number;
+  /** Self-hosted ("connect my own GTSDB") connections allowed on this plan. */
+  maxExternalInstances: number;
   maxKeysPerInstance: number;
   maxPoints: number; // max stored data points (hard storage cap)
   retentionDays: number;

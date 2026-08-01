@@ -7,8 +7,8 @@ import {
   listInstances,
   updateInstance,
 } from "@/lib/store";
-import { canCreateInstance, getPlan } from "@/lib/plans";
-import { callGtsdb, checkHealth, provisionGtsdbUser } from "@/lib/gtsdb-server";
+import { canCreateExternalInstance, canCreateInstance, getPlan } from "@/lib/plans";
+import { callGtsdb, checkHealth, normalizeEndpoint, provisionGtsdbUser } from "@/lib/gtsdb-server";
 import {
   getGtsdbBase,
   getPublicHttpUrl,
@@ -20,6 +20,7 @@ import type {
   CreateInstanceInput,
   GtsdbResponse,
   InstanceRegion,
+  InstanceStatus,
   PlatformInstance,
 } from "@/lib/types";
 
@@ -42,7 +43,7 @@ export const GET = handle(async (req: NextRequest) => {
   const instances = await listInstances(user.uid);
   const record = await getUser(user.uid);
 
-  // Reconcile usage against the live shared server so the overview / cards
+  // Reconcile usage against each instance's live server so the overview / cards
   // show real keys & points (the stored counters only track platform proxy
   // traffic, not data written directly to GTSDB).
   const base = getGtsdbBase();
@@ -50,8 +51,11 @@ export const GET = handle(async (req: NextRequest) => {
   if (await checkHealth(base)) {
     liveInstances = await Promise.all(
       instances.map(async (inst) => {
-        if (!inst.namespace || !inst.token) return inst;
-        const res = await callGtsdb(base, inst.token, ops.ownIdsWithCount());
+        // Self-hosted instances point at the user's own server; managed ones
+        // use the shared base. Instances without a token are skipped.
+        const endpoint = inst.external ? inst.endpoint : base;
+        if (!endpoint || !inst.token) return inst;
+        const res = await callGtsdb(endpoint, inst.token, ops.ownIdsWithCount());
         if (!res.ok) return inst;
         const counts = readKeyCounts(res.data as GtsdbResponse);
         const keys = counts.length;
@@ -86,10 +90,25 @@ export const POST = handle(async (req: NextRequest) => {
 
   const plan = record.plan ?? "free";
   const existing = await listInstances(user.uid);
-  if (!canCreateInstance(plan, existing.length)) {
+  const planDef = getPlan(plan);
+
+  // "Connect my own GTSDB": the user supplies an IP/domain (+ optional token)
+  // and the platform proxies to their server instead of provisioning a tenant
+  // on the shared managed server.
+  const external = Boolean(body.endpoint?.trim());
+
+  if (external) {
+    const extCount = existing.filter((i) => i.external).length;
+    if (!canCreateExternalInstance(plan, extCount)) {
+      throw new HttpError(
+        402,
+        `Your ${planDef.name} plan allows up to ${planDef.maxExternalInstances} self-hosted connection(s). Upgrade to add more.`
+      );
+    }
+  } else if (!canCreateInstance(plan, existing.filter((i) => !i.external).length)) {
     throw new HttpError(
       402,
-      `Your ${getPlan(plan).name} plan allows up to ${getPlan(plan).maxInstances} instance(s). Upgrade to create more.`
+      `Your ${planDef.name} plan allows up to ${planDef.maxInstances} instance(s). Upgrade to create more.`
     );
   }
 
@@ -104,16 +123,38 @@ export const POST = handle(async (req: NextRequest) => {
 
   const slug = uniqueSlug(slugify(name), (await listAllInstances()).map((i) => i.slug));
 
-  // Provision a real tenant namespace on the shared, multi-tenant GTSDB server.
-  // Each instance = one GTSDB user; its token scopes every request to that
-  // namespace (isolation is enforced server-side by GTSDB).
-  const endpoint = getGtsdbBase();
-  const connectionString = getPublicHttpUrl();
-  const tcpConnectionString = getPublicTcpUrl();
-  const provision = await provisionGtsdbUser(id, getPlan(plan).maxPoints);
-  const token = provision.ok ? provision.token : generateConnectionToken();
-  const healthy = provision.ok || (await checkHealth(endpoint));
-  const status = provision.ok || healthy ? "active" : "offline";
+  // Upstream endpoint: the shared managed server, or the user's own GTSDB.
+  const endpoint = external ? normalizeEndpoint(body.endpoint!) : getGtsdbBase();
+  if (external && !endpoint) {
+    throw new HttpError(400, "A valid GTSDB address (IP or domain) is required");
+  }
+
+  let token: string;
+  let namespace: string;
+  let connectionString: string;
+  let tcpConnectionString: string;
+  let status: InstanceStatus;
+
+  if (external) {
+    // Self-hosted: no tenant provisioning — the platform just proxies to the
+    // user's server using their (optional) token.
+    token = (body.token || "").trim();
+    namespace = "";
+    connectionString = endpoint;
+    tcpConnectionString = "";
+    status = (await checkHealth(endpoint)) ? "active" : "offline";
+  } else {
+    // Provision a real tenant namespace on the shared, multi-tenant GTSDB
+    // server. Each instance = one GTSDB user; its token scopes every request
+    // to that namespace (isolation is enforced server-side by GTSDB).
+    connectionString = getPublicHttpUrl();
+    tcpConnectionString = getPublicTcpUrl();
+    const provision = await provisionGtsdbUser(id, planDef.maxPoints);
+    token = provision.ok ? provision.token : generateConnectionToken();
+    namespace = id;
+    const healthy = provision.ok || (await checkHealth(endpoint));
+    status = provision.ok || healthy ? "active" : "offline";
+  }
 
   const instance: PlatformInstance = {
     id,
@@ -124,8 +165,9 @@ export const POST = handle(async (req: NextRequest) => {
     plan,
     status,
     endpoint,
-    namespace: id,
+    namespace,
     token,
+    external,
     connectionString,
     tcpConnectionString,
     createdAt: now,

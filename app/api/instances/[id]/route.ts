@@ -46,6 +46,7 @@ export const PATCH = handle(async (req: NextRequest, { params }: { params: { id:
     patch.endpoint = (body.endpoint || "").trim();
     patch.serverInfo = null;
   }
+  if (body.token !== undefined) patch.token = body.token;
 
   // Re-run the health check when the endpoint changed so the status is fresh.
   if (body.endpoint !== undefined || body.status !== undefined) {

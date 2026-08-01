@@ -11,6 +11,7 @@ export const PLANS: Record<PlanId, Plan> = {
     priceMonthly: 0,
     priceYearly: 0,
     maxInstances: 1,
+    maxExternalInstances: 1,
     maxKeysPerInstance: 10,
     maxPoints: 5_000_000,
     retentionDays: 7,
@@ -31,6 +32,7 @@ export const PLANS: Record<PlanId, Plan> = {
     priceMonthly: 29,
     priceYearly: 290,
     maxInstances: 5,
+    maxExternalInstances: 10,
     maxKeysPerInstance: 500,
     maxPoints: 500_000_000,
     retentionDays: 90,
@@ -53,6 +55,7 @@ export const PLANS: Record<PlanId, Plan> = {
     priceMonthly: 99,
     priceYearly: 990,
     maxInstances: 20,
+    maxExternalInstances: 200,
     maxKeysPerInstance: 5000,
     maxPoints: 5_000_000_000,
     retentionDays: 365,
@@ -93,4 +96,10 @@ export function formatPoints(n: number): string {
 export function canCreateInstance(plan: PlanId, currentCount: number): boolean {
   const p = getPlan(plan);
   return currentCount < p.maxInstances;
+}
+
+/** Return true when the plan allows another self-hosted (external) connection. */
+export function canCreateExternalInstance(plan: PlanId, currentCount: number): boolean {
+  const p = getPlan(plan);
+  return currentCount < p.maxExternalInstances;
 }

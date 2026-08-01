@@ -29,6 +29,8 @@ export default function OverviewPage() {
 
   const totalPoints = instances.reduce((s, i) => s + i.usage.points, 0);
   const totalKeys = instances.reduce((s, i) => s + i.usage.keys, 0);
+  const managedCount = instances.filter((i) => !i.external).length;
+  const externalCount = instances.length - managedCount;
   const planDef = getPlan(plan);
   const limitProgress = planDef.maxInstances
     ? Math.min(100, (instances.length / planDef.maxInstances) * 100)
@@ -49,7 +51,8 @@ export default function OverviewPage() {
           <PlanBadge plan={plan} />
           <CreateInstanceDialog
             plan={plan}
-            instanceCount={instances.length}
+            managedCount={managedCount}
+            externalCount={externalCount}
             onCreated={() => refresh()}
           />
         </div>
@@ -122,7 +125,8 @@ export default function OverviewPage() {
           action={
             <CreateInstanceDialog
               plan={plan}
-              instanceCount={0}
+              managedCount={0}
+              externalCount={externalCount}
               onCreated={() => refresh()}
             />
           }

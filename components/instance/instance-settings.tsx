@@ -56,16 +56,26 @@ export function InstanceSettings({
 
   const [name, setName] = React.useState(instance.name);
   const [region, setRegion] = React.useState<InstanceRegion>(instance.region);
+  const [endpoint, setEndpoint] = React.useState(instance.endpoint);
+  const [serverToken, setServerToken] = React.useState(instance.token);
   const [saving, setSaving] = React.useState(false);
   const [deleting, setDeleting] = React.useState(false);
 
   const plan = getPlan(instance.plan);
-  const dirty = name !== instance.name || region !== instance.region;
+  const dirty =
+    name !== instance.name ||
+    region !== instance.region ||
+    (instance.external &&
+      (endpoint !== instance.endpoint || serverToken !== instance.token));
 
   async function handleSave() {
     setSaving(true);
     try {
-      const updated = await updateInstance(instance.id, { name, region }, token);
+      const updated = await updateInstance(
+        instance.id,
+        instance.external ? { name, region, endpoint, token: serverToken } : { name, region },
+        token
+      );
       toast.success("Instance settings saved");
       onChanged(updated);
     } catch (err) {
@@ -127,6 +137,31 @@ export function InstanceSettings({
               </SelectContent>
             </Select>
           </div>
+
+          {instance.external && (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="endpoint">GTSDB address</Label>
+                <Input
+                  id="endpoint"
+                  value={endpoint}
+                  onChange={(e) => setEndpoint(e.target.value)}
+                  placeholder="http://1.2.3.4:5556 or my-gtsdb.example.com"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="serverToken">Token (optional)</Label>
+                <Input
+                  id="serverToken"
+                  type="password"
+                  autoComplete="off"
+                  value={serverToken}
+                  onChange={(e) => setServerToken(e.target.value)}
+                  placeholder="Leave blank if your server needs no token"
+                />
+              </div>
+            </>
+          )}
 
           <div className="flex justify-end">
             <Button onClick={handleSave} disabled={!dirty || saving}>

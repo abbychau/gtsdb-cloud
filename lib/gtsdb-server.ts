@@ -118,7 +118,7 @@ export async function syncUserQuotas(
   return { ok, failed };
 }
 
-function normalizeEndpoint(endpoint: string): string {
+export function normalizeEndpoint(endpoint: string): string {
   let e = (endpoint || "").trim().replace(/\/+$/, "");
   if (!e) return "";
   if (!/^https?:\/\//i.test(e)) e = `http://${e}`;

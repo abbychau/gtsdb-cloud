@@ -77,9 +77,11 @@ export const POST = handle(
       .toLowerCase();
     const isWrite = WRITE_OPS.has(operationName);
 
-    // Enforce the freemium quota before anything is written.
+    // Enforce the freemium quota before anything is written. Self-hosted
+    // (external) instances store data on the user's own server, so platform
+    // storage caps don't apply — usage is still counted though.
     const impact = incomingImpact(body as Record<string, unknown>);
-    const violation = quotaViolation(inst, impact);
+    const violation = inst.external ? null : quotaViolation(inst, impact);
     if (violation) {
       return NextResponse.json(
         { success: false, message: violation },

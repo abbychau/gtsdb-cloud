@@ -27,9 +27,9 @@ import type {
 import { StatCard } from "@/components/dashboard/stat-card";
 import { ConnectionStatus } from "@/components/dashboard/connection-status";
 import { PlanBadge } from "@/components/dashboard/plan-badge";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
@@ -153,6 +153,7 @@ export function InstanceOverview({
             <div className="mb-2 flex items-center gap-2">
               <ConnectionStatus status={status} />
               <PlanBadge plan={instance.plan} />
+              {instance.external && <Badge variant="outline">Self-hosted</Badge>}
             </div>
             <InfoRow label="HTTP endpoint" value={instance.connectionString} />
             <InfoRow label="TCP endpoint" value={instance.tcpConnectionString} />

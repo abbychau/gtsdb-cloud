@@ -41,11 +41,13 @@ const REGIONS: Array<{ value: InstanceRegion; label: string }> = [
 
 export function CreateInstanceDialog({
   plan,
-  instanceCount,
+  managedCount,
+  externalCount,
   onCreated,
 }: {
   plan: "free" | "pro" | "team";
-  instanceCount: number;
+  managedCount: number;
+  externalCount: number;
   onCreated: (instance: PlatformInstance) => void;
 }) {
   const { authToken } = useAuth();
@@ -55,21 +57,36 @@ export function CreateInstanceDialog({
 
   const [name, setName] = React.useState("");
   const [region, setRegion] = React.useState<InstanceRegion>("auto");
+  const [mode, setMode] = React.useState<"managed" | "external">("managed");
+  const [endpoint, setEndpoint] = React.useState("");
+  const [serverToken, setServerToken] = React.useState("");
 
   const planDef = getPlan(plan);
-  const atLimit = !canCreateInstance(plan, instanceCount);
+  const atLimit = !canCreateInstance(plan, managedCount);
+  const extAtLimit = externalCount >= planDef.maxExternalInstances;
+  const noCapacity = atLimit && extAtLimit;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setBusy(true);
     try {
-      const inst = await createInstance({ name, region }, authToken || "");
-      toast.success(`Instance "${inst.name}" created`, {
-        description: `Connection: ${inst.connectionString}`,
-      });
+      const input =
+        mode === "external"
+          ? { name, region, endpoint: endpoint.trim(), token: serverToken.trim() }
+          : { name, region };
+      const inst = await createInstance(input, authToken || "");
+      toast.success(
+        mode === "external"
+          ? `Connected to ${inst.connectionString}`
+          : `Instance "${inst.name}" created`,
+        { description: mode === "external" ? inst.name : `Connection: ${inst.connectionString}` }
+      );
       setOpen(false);
       setName("");
+      setEndpoint("");
+      setServerToken("");
+      setMode("managed");
       onCreated(inst);
     } catch (err) {
       if (err instanceof ApiError) setError(err.message);
@@ -82,7 +99,7 @@ export function CreateInstanceDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button disabled={atLimit}>
+        <Button disabled={noCapacity}>
           <Plus className="mr-2 h-4 w-4" />
           New instance
         </Button>
@@ -91,16 +108,24 @@ export function CreateInstanceDialog({
         <DialogHeader>
           <DialogTitle>Create a new instance</DialogTitle>
           <DialogDescription>
-            The platform auto-generates a connection string and credential —
-            nothing to configure.
+            Spin up a managed instance on the shared GTSDB server — or connect
+            to your own GTSDB by IP or domain.
           </DialogDescription>
         </DialogHeader>
 
-        {atLimit && (
+        {mode === "managed" && atLimit && (
           <Alert variant="destructive">
             <AlertDescription>
-              Your {planDef.name} plan allows up to {planDef.maxInstances} instance(s).
-              Delete one or upgrade to create another.
+              Your {planDef.name} plan allows up to {planDef.maxInstances} managed
+              instance(s). Delete one or upgrade to create another.
+            </AlertDescription>
+          </Alert>
+        )}
+        {mode === "external" && extAtLimit && (
+          <Alert variant="destructive">
+            <AlertDescription>
+              Your {planDef.name} plan allows up to {planDef.maxExternalInstances}{" "}
+              self-hosted connection(s). Delete one or upgrade to add more.
             </AlertDescription>
           </Alert>
         )}
@@ -135,6 +160,63 @@ export function CreateInstanceDialog({
             </Select>
           </div>
 
+          <div className="space-y-2">
+            <Label>Connection type</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                variant={mode === "managed" ? "default" : "outline"}
+                onClick={() => setMode("managed")}
+              >
+                Managed
+              </Button>
+              <Button
+                type="button"
+                variant={mode === "external" ? "default" : "outline"}
+                onClick={() => setMode("external")}
+                disabled={extAtLimit}
+              >
+                My own GTSDB
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {mode === "external"
+                ? "Connect to your own GTSDB by IP or domain. "
+                : "Managed instances run on the shared GTSDB server. "}
+              Self-hosted connections: {externalCount} / {planDef.maxExternalInstances}
+              {extAtLimit ? " (limit reached — upgrade to add more)" : ""}
+            </p>
+          </div>
+
+          {mode === "external" && (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="endpoint">GTSDB address</Label>
+                <Input
+                  id="endpoint"
+                  placeholder="http://1.2.3.4:5556 or my-gtsdb.example.com"
+                  value={endpoint}
+                  onChange={(e) => setEndpoint(e.target.value)}
+                  required
+                />
+                <p className="text-xs text-muted-foreground">
+                  Your server&apos;s HTTP endpoint — IP, domain, or full URL.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="serverToken">Token (optional)</Label>
+                <Input
+                  id="serverToken"
+                  type="password"
+                  autoComplete="off"
+                  placeholder="Bearer token (leave blank if none)"
+                  value={serverToken}
+                  onChange={(e) => setServerToken(e.target.value)}
+                />
+              </div>
+            </>
+          )}
+
           {error && (
             <Alert variant="destructive">
               <AlertDescription className="text-xs">{error}</AlertDescription>
@@ -145,7 +227,10 @@ export function CreateInstanceDialog({
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={busy || atLimit}>
+            <Button
+              type="submit"
+              disabled={busy || (mode === "managed" ? atLimit : extAtLimit)}
+            >
               {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Create instance
             </Button>
