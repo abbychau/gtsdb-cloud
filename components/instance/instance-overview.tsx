@@ -198,8 +198,6 @@ export function InstanceOverview({
                 />
                 <InfoRow label="Goroutines" value={serverInfo.goroutines} />
                 <InfoRow label="CPU cores" value={serverInfo.num_cpu} />
-                <InfoRow label="HTTP listen" value={serverInfo.listen_http} />
-                <InfoRow label="TCP listen" value={serverInfo.listen_tcp} />
               </>
             ) : (
               <p className="py-3 text-center text-xs text-muted-foreground">
