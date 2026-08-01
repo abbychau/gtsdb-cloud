@@ -1,7 +1,10 @@
+"use client";
+
 import Link from "next/link";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/lib/auth-context";
 
 const SNIPPET = `$ curl -X POST https://<your-instance>.gtsdb.cloud \\
     -H "Authorization: Bearer gtsb_xxxx" \\
@@ -10,6 +13,7 @@ const SNIPPET = `$ curl -X POST https://<your-instance>.gtsdb.cloud \\
 {"success":true,"message":"Data point stored"}`;
 
 export function Hero() {
+  const { user } = useAuth();
   return (
     <section className="relative overflow-hidden">
       <div
@@ -40,8 +44,9 @@ export function Hero() {
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <Button asChild size="lg">
-              <Link href="/signup">
-                Start free <ArrowRight className="ml-2 h-4 w-4" />
+              <Link href={user ? "/dashboard" : "/signup"}>
+                {user ? "Go to dashboard" : "Start free"}{" "}
+                <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
             <Button asChild size="lg" variant="outline">

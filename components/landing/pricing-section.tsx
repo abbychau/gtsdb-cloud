@@ -1,12 +1,16 @@
+"use client";
+
 import Link from "next/link";
-import { Check } from "lucide-react";
+import { ArrowRight, Check } from "lucide-react";
 import { PLANS, PLAN_ORDER } from "@/lib/plans";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/lib/auth-context";
 
 export function PricingSection() {
+  const { user } = useAuth();
   return (
     <section id="pricing" className="container py-20">
       <div className="mx-auto max-w-2xl text-center">
@@ -60,7 +64,13 @@ export function PricingSection() {
               </CardContent>
               <CardFooter>
                 <Button asChild variant={plan.highlighted ? "default" : "outline"} className="w-full">
-                  <Link href="/signup">{plan.cta}</Link>
+                  {user ? (
+                    <Link href="/dashboard">
+                      Go to dashboard <ArrowRight className="ml-2 h-4 w-4" />
+                    </Link>
+                  ) : (
+                    <Link href="/signup">{plan.cta}</Link>
+                  )}
                 </Button>
               </CardFooter>
             </Card>

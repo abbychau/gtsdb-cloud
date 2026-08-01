@@ -1,8 +1,12 @@
+"use client";
+
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/lib/auth-context";
 
 export function Cta() {
+  const { user } = useAuth();
   return (
     <section className="container pb-20">
       <div className="relative overflow-hidden rounded-2xl border bg-primary px-6 py-16 text-center text-primary-foreground">
@@ -22,8 +26,9 @@ export function Cta() {
         </p>
         <div className="relative mt-8 flex flex-wrap items-center justify-center gap-3">
           <Button asChild size="lg" variant="secondary">
-            <Link href="/signup">
-              Get started free <ArrowRight className="ml-2 h-4 w-4" />
+            <Link href={user ? "/dashboard" : "/signup"}>
+              {user ? "Go to dashboard" : "Get started free"}{" "}
+              <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
           </Button>
           <Button

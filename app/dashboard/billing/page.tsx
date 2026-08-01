@@ -56,6 +56,8 @@ export default function BillingPage() {
   } | null>(null);
 
   const totalPoints = instances.reduce((s, i) => s + i.usage.points, 0);
+  const managedCount = instances.filter((i) => !i.external).length;
+  const externalCount = instances.length - managedCount;
   const planDef = getPlan(plan);
   // True when the user cancelled and is waiting for the billing period to end.
   const scheduled = stripeEnabled && subInfo?.cancelAtPeriodEnd === true && plan !== "free";
@@ -221,13 +223,25 @@ export default function BillingPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-baseline justify-between">
-              <span className="text-sm text-muted-foreground">Instance quota</span>
+              <span className="text-sm text-muted-foreground">Managed instance quota</span>
               <span className="text-sm font-medium">
-                {instances.length} / {planDef.maxInstances}
+                {managedCount} / {planDef.maxInstances}
               </span>
             </div>
             <Progress
-              value={Math.min(100, (instances.length / planDef.maxInstances) * 100)}
+              value={Math.min(100, (managedCount / planDef.maxInstances) * 100)}
+            />
+            <div className="flex items-baseline justify-between">
+              <span className="text-sm text-muted-foreground">Self-hosted connections</span>
+              <span className="text-sm font-medium">
+                {externalCount} / {planDef.maxExternalInstances}
+              </span>
+            </div>
+            <Progress
+              value={Math.min(
+                100,
+                (externalCount / planDef.maxExternalInstances) * 100
+              )}
             />
             <div className="flex items-baseline justify-between">
               <span className="text-sm text-muted-foreground">Data points stored</span>

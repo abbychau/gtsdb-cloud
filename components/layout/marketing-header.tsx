@@ -3,10 +3,11 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X } from "lucide-react";
+import { ArrowRight, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/layout/logo";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
+import { useAuth } from "@/lib/auth-context";
 
 const NAV_LINKS = [
   { href: "/#features", label: "Features" },
@@ -16,6 +17,7 @@ const NAV_LINKS = [
 ];
 
 export function MarketingHeader() {
+  const { user } = useAuth();
   const [open, setOpen] = React.useState(false);
   const pathname = usePathname();
 
@@ -40,12 +42,22 @@ export function MarketingHeader() {
 
         <div className="hidden items-center gap-2 md:flex">
           <ThemeToggle />
-          <Button asChild variant="ghost" size="sm">
-            <Link href="/login">Sign in</Link>
-          </Button>
-          <Button asChild size="sm">
-            <Link href="/signup">Start free</Link>
-          </Button>
+          {user ? (
+            <Button asChild size="sm">
+              <Link href="/dashboard">
+                Dashboard <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+          ) : (
+            <>
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/login">Sign in</Link>
+              </Button>
+              <Button asChild size="sm">
+                <Link href="/signup">Start free</Link>
+              </Button>
+            </>
+          )}
         </div>
 
         <div className="flex items-center gap-2 md:hidden">
@@ -74,12 +86,20 @@ export function MarketingHeader() {
               </Link>
             ))}
             <div className="mt-2 flex gap-2">
-              <Button asChild variant="outline" className="flex-1">
-                <Link href="/login">Sign in</Link>
-              </Button>
-              <Button asChild className="flex-1">
-                <Link href="/signup">Start free</Link>
-              </Button>
+              {user ? (
+                <Button asChild className="flex-1">
+                  <Link href="/dashboard">Dashboard</Link>
+                </Button>
+              ) : (
+                <>
+                  <Button asChild variant="outline" className="flex-1">
+                    <Link href="/login">Sign in</Link>
+                  </Button>
+                  <Button asChild className="flex-1">
+                    <Link href="/signup">Start free</Link>
+                  </Button>
+                </>
+              )}
             </div>
           </nav>
         </div>

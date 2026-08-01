@@ -6,6 +6,7 @@ import {
   ArrowRight,
   BarChart3,
   Database,
+  Globe,
   KeyRound,
   Plus,
   Sparkles,
@@ -33,7 +34,10 @@ export default function OverviewPage() {
   const externalCount = instances.length - managedCount;
   const planDef = getPlan(plan);
   const limitProgress = planDef.maxInstances
-    ? Math.min(100, (instances.length / planDef.maxInstances) * 100)
+    ? Math.min(100, (managedCount / planDef.maxInstances) * 100)
+    : 0;
+  const extLimitProgress = planDef.maxExternalInstances
+    ? Math.min(100, (externalCount / planDef.maxExternalInstances) * 100)
     : 0;
 
   return (
@@ -58,12 +62,18 @@ export default function OverviewPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <StatCard
           icon={Database}
-          label="Instances"
-          value={instances.length}
+          label="Managed instances"
+          value={managedCount}
           hint={`${planDef.maxInstances} allowed on ${planDef.name}`}
+        />
+        <StatCard
+          icon={Globe}
+          label="Self-hosted"
+          value={externalCount}
+          hint={`${planDef.maxExternalInstances} allowed on ${planDef.name}`}
         />
         <StatCard
           icon={BarChart3}
@@ -87,15 +97,15 @@ export default function OverviewPage() {
 
       <div className="rounded-xl border p-5">
         <div className="flex items-center justify-between text-sm">
-          <span className="font-medium">Instance quota</span>
+          <span className="font-medium">Managed instance quota</span>
           <span className="text-muted-foreground">
-            {instances.length} / {planDef.maxInstances}
+            {managedCount} / {planDef.maxInstances}
           </span>
         </div>
         <Progress value={limitProgress} className="mt-3" />
         {limitProgress >= 100 ? (
           <p className="mt-3 text-xs text-muted-foreground">
-            You&apos;ve reached your plan limit.{" "}
+            You&apos;ve reached your managed instance limit.{" "}
             <Link href="/dashboard/billing" className="text-primary hover:underline">
               Upgrade your plan
             </Link>{" "}
@@ -110,6 +120,13 @@ export default function OverviewPage() {
             page.
           </p>
         )}
+        <div className="mt-3 flex items-center justify-between border-t pt-3 text-sm">
+          <span className="text-muted-foreground">Self-hosted connections</span>
+          <span className="text-muted-foreground">
+            {externalCount} / {planDef.maxExternalInstances}
+          </span>
+        </div>
+        <Progress value={extLimitProgress} className="mt-3" />
       </div>
 
       {loading ? (
