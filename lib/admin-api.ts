@@ -185,3 +185,58 @@ export async function deleteAdminInstance(
     token,
   });
 }
+
+// --- Stripe (payments) -----------------------------------------------------
+
+export interface StripeEvent {
+  id: string;
+  type: string;
+  created: string;
+  apiVersion: string | null;
+  objectId: string | null;
+}
+
+export interface StripeSubscriptionRow {
+  id: string;
+  status: string;
+  cancelAtPeriodEnd: boolean;
+  currentPeriodEnd: string | null;
+}
+
+export interface StripeCustomerRow {
+  uid: string;
+  email: string | null;
+  name: string | null;
+  plan: string;
+  stripeCustomerId: string | null;
+  subscription: StripeSubscriptionRow | null;
+}
+
+export interface StripeEventsResponse {
+  enabled: boolean;
+  events: StripeEvent[];
+}
+
+export interface StripeCustomersResponse {
+  enabled: boolean;
+  customers: StripeCustomerRow[];
+}
+
+export async function getStripeEvents(token: string): Promise<StripeEventsResponse> {
+  return request<StripeEventsResponse>("/api/admin/stripe/events", { token });
+}
+
+export async function getStripeCustomers(token: string): Promise<StripeCustomersResponse> {
+  return request<StripeCustomersResponse>("/api/admin/stripe/customers", { token });
+}
+
+export async function adminStripeSubscriptionAction(
+  customerId: string,
+  action: "cancel" | "reactivate",
+  token: string
+): Promise<{ ok: boolean; subscription: StripeSubscriptionRow | null }> {
+  return request<{ ok: boolean; subscription: StripeSubscriptionRow | null }>(
+    `/api/admin/stripe/customers/${customerId}`,
+    { method: "POST", body: { action }, token }
+  );
+}

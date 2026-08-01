@@ -7,8 +7,10 @@ import {
   Archive,
   Boxes,
   Cpu,
+  CreditCard,
   Database,
   Download,
+  ExternalLink,
   FolderOpen,
   Gauge,
   HardDrive,
@@ -19,6 +21,7 @@ import {
   ShieldCheck,
   Trash2,
   Users,
+  Zap,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
@@ -26,12 +29,15 @@ import { isAdminEmail } from "@/lib/admin";
 import { getPlan, PLAN_ORDER } from "@/lib/plans";
 import { formatBytes, formatCompact, formatNumber } from "@/lib/utils";
 import {
+  adminStripeSubscriptionAction,
   createBackup,
   deleteAdminInstance,
   deleteAdminUser,
   downloadBackup,
   getAdminMonitor,
   getAdminStats,
+  getStripeCustomers,
+  getStripeEvents,
   listAdminInstances,
   listAdminUsers,
   listBackups,
@@ -42,6 +48,8 @@ import {
   type AdminStats,
   type AdminUser,
   type BackupInfo,
+  type StripeCustomerRow,
+  type StripeEvent,
 } from "@/lib/admin-api";
 import type { InstanceStatus, PlanId } from "@/lib/types";
 import { StatCard } from "@/components/dashboard/stat-card";
@@ -183,6 +191,10 @@ export default function AdminPage() {
   const [monitor, setMonitor] = React.useState<AdminMonitor | null>(null);
   const [backups, setBackups] = React.useState<BackupInfo[]>([]);
   const [backingUp, setBackingUp] = React.useState(false);
+  const [stripeEvents, setStripeEvents] = React.useState<StripeEvent[]>([]);
+  const [stripeCustomers, setStripeCustomers] = React.useState<StripeCustomerRow[]>([]);
+  const [stripeEnabled, setStripeEnabled] = React.useState(false);
+  const [stripeBusy, setStripeBusy] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [refreshing, setRefreshing] = React.useState(false);
 
@@ -191,18 +203,23 @@ export default function AdminPage() {
   const load = React.useCallback(async () => {
     if (!token) return;
     try {
-      const [s, u, i, m, b] = await Promise.all([
+      const [s, u, i, m, b, se, sc] = await Promise.all([
         getAdminStats(token),
         listAdminUsers(token),
         listAdminInstances(token),
         getAdminMonitor(token),
         listBackups(token),
+        getStripeEvents(token),
+        getStripeCustomers(token),
       ]);
       setStats(s);
       setUsers(u);
       setInstances(i);
       setMonitor(m);
       setBackups(b);
+      setStripeEvents(se.events ?? []);
+      setStripeCustomers(sc.customers ?? []);
+      setStripeEnabled(se.enabled && sc.enabled);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to load admin data");
     } finally {
@@ -324,6 +341,28 @@ export default function AdminPage() {
     }
   }
 
+  async function handleStripeAction(customerId: string, action: "cancel" | "reactivate") {
+    setStripeBusy(customerId);
+    try {
+      const res = await adminStripeSubscriptionAction(customerId, action, token);
+      if (!res.ok) throw new Error("Action failed");
+      setStripeCustomers((prev) =>
+        prev.map((c) =>
+          c.stripeCustomerId === customerId ? { ...c, subscription: res.subscription } : c
+        )
+      );
+      toast.success(
+        action === "cancel"
+          ? "Cancellation scheduled at period end."
+          : "Subscription reactivated — billing resumed."
+      );
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Stripe action failed");
+    } finally {
+      setStripeBusy(null);
+    }
+  }
+
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -352,6 +391,7 @@ export default function AdminPage() {
           <TabsTrigger value="instances">Instances ({instances.length})</TabsTrigger>
           <TabsTrigger value="monitor">Monitor</TabsTrigger>
           <TabsTrigger value="backup">Backup</TabsTrigger>
+          <TabsTrigger value="payments">Payments</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
@@ -810,6 +850,225 @@ export default function AdminPage() {
                   )}
                 </TableBody>
               </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="payments" className="space-y-6">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <CreditCard className="h-4 w-4" /> Customers & subscriptions
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Platform users that have a Stripe customer, with their live
+                subscription state. Cards are stored by Stripe — this platform
+                never holds card data.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-0">
+              {!stripeEnabled ? (
+                <p className="px-4 py-8 text-center text-sm text-muted-foreground">
+                  Stripe is not configured — no payment data available.
+                </p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>User</TableHead>
+                      <TableHead>Plan</TableHead>
+                      <TableHead>Subscription</TableHead>
+                      <TableHead>Renews / cancels</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {stripeCustomers.length === 0 ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={5}
+                          className="py-8 text-center text-muted-foreground"
+                        >
+                          No users have connected a Stripe customer yet.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      stripeCustomers.map((c) => (
+                        <TableRow key={c.uid}>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Avatar className="h-7 w-7">
+                                <AvatarFallback className="text-xs">
+                                  {(c.name || c.email || "?")
+                                    .slice(0, 2)
+                                    .toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="min-w-0">
+                                <div className="truncate text-sm font-medium">
+                                  {c.name || "—"}
+                                </div>
+                                <div className="truncate text-xs text-muted-foreground">
+                                  {c.email || c.uid}
+                                </div>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{c.plan}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            {c.subscription ? (
+                              <Badge
+                                className={
+                                  c.subscription.status === "active" ||
+                                  c.subscription.status === "trialing"
+                                    ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                                    : "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                                }
+                              >
+                                {c.subscription.status}
+                                {c.subscription.cancelAtPeriodEnd
+                                  ? " · cancels"
+                                  : ""}
+                              </Badge>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">
+                                No active subscription
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {c.subscription?.currentPeriodEnd
+                              ? new Date(
+                                  c.subscription.currentPeriodEnd
+                                ).toLocaleDateString()
+                              : "—"}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              {c.stripeCustomerId && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7"
+                                  aria-label="Open in Stripe dashboard"
+                                  title="Open in Stripe dashboard"
+                                  onClick={() =>
+                                    window.open(
+                                      `https://dashboard.stripe.com/test/customers/${c.stripeCustomerId}`,
+                                      "_blank"
+                                    )
+                                  }
+                                >
+                                  <ExternalLink className="h-4 w-4" />
+                                </Button>
+                              )}
+                              {c.subscription &&
+                                (c.subscription.cancelAtPeriodEnd ? (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7"
+                                    disabled={stripeBusy === c.stripeCustomerId}
+                                    onClick={() =>
+                                      handleStripeAction(
+                                        c.stripeCustomerId!,
+                                        "reactivate"
+                                      )
+                                    }
+                                  >
+                                    {stripeBusy === c.stripeCustomerId ? (
+                                      <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                                    ) : (
+                                      <Zap className="mr-1 h-3 w-3" />
+                                    )}
+                                    Reactivate
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 text-red-600 hover:text-red-700"
+                                    disabled={stripeBusy === c.stripeCustomerId}
+                                    onClick={() =>
+                                      handleStripeAction(
+                                        c.stripeCustomerId!,
+                                        "cancel"
+                                      )
+                                    }
+                                  >
+                                    {stripeBusy === c.stripeCustomerId ? (
+                                      <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                                    ) : (
+                                      <Trash2 className="mr-1 h-3 w-3" />
+                                    )}
+                                    Cancel
+                                  </Button>
+                                ))}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <Activity className="h-4 w-4" /> Stripe events
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Recent Stripe webhook/API events (newest first) — used to verify
+                payments, downgrades and reactivations landed correctly.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-0">
+              {!stripeEnabled ? (
+                <p className="px-4 py-8 text-center text-sm text-muted-foreground">
+                  Stripe is not configured.
+                </p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Object</TableHead>
+                      <TableHead>Created</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {stripeEvents.length === 0 ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={3}
+                          className="py-8 text-center text-muted-foreground"
+                        >
+                          No Stripe events yet.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      stripeEvents.map((ev) => (
+                        <TableRow key={ev.id}>
+                          <TableCell className="font-mono text-xs">
+                            {ev.type}
+                          </TableCell>
+                          <TableCell className="font-mono text-xs text-muted-foreground">
+                            {ev.objectId ?? "—"}
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {new Date(ev.created).toLocaleString()}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
