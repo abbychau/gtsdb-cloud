@@ -220,6 +220,8 @@ export interface StripeEvent {
   created: string;
   apiVersion: string | null;
   objectId: string | null;
+  customerId: string | null;
+  user: { uid: string; email: string | null; name: string | null } | null;
 }
 
 export interface StripeSubscriptionRow {

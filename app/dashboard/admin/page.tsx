@@ -199,10 +199,18 @@ export default function AdminPage() {
   const [stripeCustomers, setStripeCustomers] = React.useState<StripeCustomerRow[]>([]);
   const [stripeEnabled, setStripeEnabled] = React.useState(false);
   const [stripeBusy, setStripeBusy] = React.useState<string | null>(null);
+  const [stripeEventFilter, setStripeEventFilter] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [refreshing, setRefreshing] = React.useState(false);
 
   const isAdmin = isAdminEmail(user?.email);
+
+  const visibleEvents = stripeEventFilter
+    ? stripeEvents.filter((ev) => ev.customerId === stripeEventFilter)
+    : stripeEvents;
+  const stripeFilterCustomer = stripeCustomers.find(
+    (c) => c.stripeCustomerId === stripeEventFilter
+  );
 
   const load = React.useCallback(async () => {
     if (!token) return;
@@ -1030,6 +1038,20 @@ export default function AdminPage() {
                               {c.stripeCustomerId && (
                                 <Button
                                   variant="ghost"
+                                  size="sm"
+                                  className="h-7"
+                                  aria-label="Show this customer's events"
+                                  title="Show this customer's events"
+                                  onClick={() =>
+                                    setStripeEventFilter(c.stripeCustomerId)
+                                  }
+                                >
+                                  <Activity className="mr-1 h-3 w-3" /> Events
+                                </Button>
+                              )}
+                              {c.stripeCustomerId && (
+                                <Button
+                                  variant="ghost"
                                   size="icon"
                                   className="h-7 w-7"
                                   aria-label="Open in Stripe dashboard"
@@ -1099,12 +1121,27 @@ export default function AdminPage() {
 
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-sm">
-                <Activity className="h-4 w-4" /> Stripe events
-              </CardTitle>
+              <div className="flex items-center justify-between gap-2">
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <Activity className="h-4 w-4" /> Stripe events
+                </CardTitle>
+                {stripeEventFilter && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => setStripeEventFilter(null)}
+                  >
+                    Show all events
+                  </Button>
+                )}
+              </div>
               <CardDescription className="text-xs">
-                Recent Stripe webhook/API events (newest first) — used to verify
-                payments, downgrades and reactivations landed correctly.
+                {stripeEventFilter
+                  ? `Showing events for ${
+                      stripeFilterCustomer?.email ?? stripeEventFilter
+                    }.`
+                  : "Recent Stripe webhook/API events (newest first) — used to verify payments, downgrades and reactivations landed correctly."}
               </CardDescription>
             </CardHeader>
             <CardContent className="p-0">
@@ -1118,27 +1155,57 @@ export default function AdminPage() {
                     <TableRow>
                       <TableHead>Type</TableHead>
                       <TableHead>Object</TableHead>
+                      <TableHead>User</TableHead>
                       <TableHead>Created</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {stripeEvents.length === 0 ? (
+                    {visibleEvents.length === 0 ? (
                       <TableRow>
                         <TableCell
-                          colSpan={3}
+                          colSpan={4}
                           className="py-8 text-center text-muted-foreground"
                         >
-                          No Stripe events yet.
+                          {stripeEventFilter
+                            ? "No events for this customer."
+                            : "No Stripe events yet."}
                         </TableCell>
                       </TableRow>
                     ) : (
-                      stripeEvents.map((ev) => (
+                      visibleEvents.map((ev) => (
                         <TableRow key={ev.id}>
                           <TableCell className="font-mono text-xs">
                             {ev.type}
                           </TableCell>
                           <TableCell className="font-mono text-xs text-muted-foreground">
                             {ev.objectId ?? "—"}
+                          </TableCell>
+                          <TableCell>
+                            {ev.user ? (
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-xs">
+                                  {ev.user.email ?? ev.user.uid}
+                                </span>
+                                {ev.customerId && (
+                                  <a
+                                    href={`https://dashboard.stripe.com/test/customers/${ev.customerId}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    title="Open customer in Stripe"
+                                  >
+                                    <ExternalLink className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                                  </a>
+                                )}
+                              </div>
+                            ) : ev.customerId ? (
+                              <span className="font-mono text-xs text-muted-foreground">
+                                {ev.customerId}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">
+                                —
+                              </span>
+                            )}
                           </TableCell>
                           <TableCell className="text-xs text-muted-foreground">
                             {new Date(ev.created).toLocaleString()}
