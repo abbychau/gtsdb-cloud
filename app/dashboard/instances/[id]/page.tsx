@@ -20,7 +20,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ConnectionStatus } from "@/components/dashboard/connection-status";
 import { PlanBadge } from "@/components/dashboard/plan-badge";
-import { Badge } from "@/components/ui/badge";
 import { DataExplorer } from "@/components/instance/data-explorer";
 import { InstanceOverview } from "@/components/instance/instance-overview";
 import { ApiConsole } from "@/components/instance/api-console";
@@ -118,7 +117,6 @@ export default function InstanceDetailPage() {
             <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
               <span className="font-mono text-xs">{instance.id}</span>
               <PlanBadge plan={instance.plan} />
-              {instance.simulate && <Badge variant="secondary">sandbox</Badge>}
               <span className="font-mono text-xs">{instance.connectionString}</span>
             </div>
           </div>

@@ -121,8 +121,6 @@ function loadStore(): StoreShape {
     if (inst.usage?.points === undefined) inst.usage.points = 0;
     if (inst.usage?.reads === undefined) inst.usage.reads = 0;
     if (inst.usage?.writes === undefined) inst.usage.writes = 0;
-    // A sandbox instance is always live — never leave it stuck offline.
-    if (inst.simulate && inst.status === "offline") inst.status = "active";
   }
   return cache;
 }

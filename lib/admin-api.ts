@@ -192,7 +192,7 @@ export async function listAdminInstances(token: string): Promise<AdminInstance[]
 
 export async function updateAdminInstance(
   id: string,
-  patch: { plan?: PlanId; status?: InstanceStatus; simulate?: boolean },
+  patch: { plan?: PlanId; status?: InstanceStatus },
   token: string
 ): Promise<AdminInstance> {
   return request<AdminInstance>(`/api/admin/instances/${id}`, {

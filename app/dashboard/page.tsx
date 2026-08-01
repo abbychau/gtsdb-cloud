@@ -118,7 +118,7 @@ export default function OverviewPage() {
         <EmptyState
           icon={Database}
           title="No instances yet"
-          description="Create your first managed GTSDB instance to start ingesting timeseries data. Every instance ships with a sandbox simulator so you can explore immediately."
+          description="Create your first managed GTSDB instance to start ingesting timeseries data."
           action={
             <CreateInstanceDialog
               plan={plan}

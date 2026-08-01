@@ -96,7 +96,6 @@ export const POST = handle(async (req: NextRequest) => {
   const region: InstanceRegion = body.region && REGIONS.includes(body.region)
     ? body.region
     : "auto";
-  const simulate = body.simulate !== false;
 
   const id = `ins_${Math.random().toString(36).slice(2, 10)}${Math.random()
     .toString(36)
@@ -114,7 +113,7 @@ export const POST = handle(async (req: NextRequest) => {
   const provision = await provisionGtsdbUser(id, getPlan(plan).maxPoints);
   const token = provision.ok ? provision.token : generateConnectionToken();
   const healthy = provision.ok || (await checkHealth(endpoint));
-  const status = provision.ok || healthy || simulate ? "active" : "offline";
+  const status = provision.ok || healthy ? "active" : "offline";
 
   const instance: PlatformInstance = {
     id,
@@ -129,7 +128,6 @@ export const POST = handle(async (req: NextRequest) => {
     token,
     connectionString,
     tcpConnectionString,
-    simulate,
     createdAt: now,
     updatedAt: now,
     lastActiveAt: now,

@@ -111,8 +111,6 @@ export interface PlatformInstance {
   namespace: string;
   /** Connection credential for the tenant namespace, managed separately. */
   token: string;
-  /** When true, the proxy falls back to simulated data if the server is unreachable. */
-  simulate: boolean;
   createdAt: string;
   updatedAt: string;
   lastActiveAt: string;
@@ -127,7 +125,6 @@ export interface CreateInstanceInput {
   name: string;
   region?: InstanceRegion;
   plan?: PlanId;
-  simulate?: boolean;
 }
 
 export interface UpdateInstanceInput {
@@ -135,7 +132,6 @@ export interface UpdateInstanceInput {
   region?: InstanceRegion;
   plan?: PlanId;
   endpoint?: string;
-  simulate?: boolean;
   status?: InstanceStatus;
 }
 

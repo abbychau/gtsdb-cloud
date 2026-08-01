@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -57,17 +56,16 @@ export function InstanceSettings({
 
   const [name, setName] = React.useState(instance.name);
   const [region, setRegion] = React.useState<InstanceRegion>(instance.region);
-  const [simulate, setSimulate] = React.useState(instance.simulate);
   const [saving, setSaving] = React.useState(false);
   const [deleting, setDeleting] = React.useState(false);
 
   const plan = getPlan(instance.plan);
-  const dirty = name !== instance.name || region !== instance.region || simulate !== instance.simulate;
+  const dirty = name !== instance.name || region !== instance.region;
 
   async function handleSave() {
     setSaving(true);
     try {
-      const updated = await updateInstance(instance.id, { name, region, simulate }, token);
+      const updated = await updateInstance(instance.id, { name, region }, token);
       toast.success("Instance settings saved");
       onChanged(updated);
     } catch (err) {
@@ -95,8 +93,7 @@ export function InstanceSettings({
         <CardHeader>
           <CardTitle className="text-sm">General</CardTitle>
           <CardDescription>
-            Name, region and sandbox behaviour. Connection strings and
-            credentials live on the{" "}
+            Name and region. Connection strings and credentials live on the{" "}
             <a href="#connection" className="text-primary underline underline-offset-2">
               Connection
             </a>{" "}
@@ -129,18 +126,6 @@ export function InstanceSettings({
                 ))}
               </SelectContent>
             </Select>
-          </div>
-
-          <div className="flex items-center justify-between rounded-lg border p-3">
-            <div>
-              <Label htmlFor="simulate" className="text-sm font-medium">
-                Sandbox simulation
-              </Label>
-              <p className="text-xs text-muted-foreground">
-                Serve demo data when the backend is unreachable.
-              </p>
-            </div>
-            <Switch id="simulate" checked={simulate} onCheckedChange={setSimulate} />
           </div>
 
           <div className="flex justify-end">

@@ -15,9 +15,8 @@ async function ownedInstance(id: string, uid: string) {
 
 /**
  * POST — rotate the connection credential.
- * For a real tenant namespace this calls GTSDB `resetkey` (which immediately
- * invalidates the previous token); for sandbox-only instances a local token
- * is regenerated instead.
+ * Calls GTSDB `resetkey` for the tenant namespace (which immediately
+ * invalidates the previous token).
  */
 export const POST = handle(
   async (req: NextRequest, { params }: { params: { id: string } }) => {

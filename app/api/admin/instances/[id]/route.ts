@@ -23,10 +23,9 @@ export const PATCH = handle(
     const body = (await req.json().catch(() => ({}))) as {
       plan?: PlanId;
       status?: InstanceStatus;
-      simulate?: boolean;
     };
 
-    const patch: { plan?: PlanId; status?: InstanceStatus; simulate?: boolean } = {};
+    const patch: { plan?: PlanId; status?: InstanceStatus } = {};
     if (body.plan !== undefined) {
       if (!PLAN_ORDER.includes(body.plan)) throw new HttpError(400, "Invalid plan");
       patch.plan = body.plan;
@@ -35,7 +34,6 @@ export const PATCH = handle(
       if (!STATUSES.includes(body.status)) throw new HttpError(400, "Invalid status");
       patch.status = body.status;
     }
-    if (body.simulate !== undefined) patch.simulate = Boolean(body.simulate);
 
     const updated = await updateInstance(params.id, patch);
     return NextResponse.json(updated);

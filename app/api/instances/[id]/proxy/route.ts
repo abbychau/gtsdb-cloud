@@ -2,7 +2,6 @@ import { NextResponse, type NextRequest } from "next/server";
 import { requireUser, handle, HttpError } from "@/lib/route-utils";
 import { getInstance, touchInstance } from "@/lib/store";
 import { callGtsdb } from "@/lib/gtsdb-server";
-import { simulateOperation } from "@/lib/simulate";
 import { getPlan, formatPoints } from "@/lib/plans";
 import type { GtsdbResponse, PlatformInstance } from "@/lib/types";
 
@@ -104,8 +103,7 @@ export const POST = handle(
       }
       if (result.status === 401 && inst.namespace) {
         // A real tenant that suddenly can't authenticate — its credential was
-        // revoked/rotated on the server. Surface the error rather than masking
-        // it with the sandbox.
+        // revoked/rotated on the server. Surface the error rather than hiding it.
         await touchInstance(inst.id, undefined, "offline");
         return NextResponse.json(
           {
@@ -116,28 +114,14 @@ export const POST = handle(
           { status: 502 }
         );
       }
-      // Otherwise (connection error, or an unprovisioned sandbox instance)
-      // fall through to the built-in simulator when enabled.
+      // Otherwise (connection error) fall through and report it below.
     }
 
-    // 2. Fall back to the built-in simulator when enabled (instance stays active).
-    if (inst.simulate) {
-      const simulated = simulateOperation(inst.id, body);
-      await touchInstance(
-        inst.id,
-        isWrite
-          ? { writes: 1, points: impact.points, keys: impact.newKeys }
-          : { reads: 1 },
-        "active"
-      );
-      return NextResponse.json(simulated);
-    }
-
-    // 3. Report the connectivity problem.
+    // Report the connectivity problem.
     return NextResponse.json(
       {
         success: false,
-        message: `Unable to reach GTSDB at ${inst.endpoint || "(no endpoint)"}. Verify the endpoint + token, or enable simulation.`,
+        message: `Unable to reach GTSDB at ${inst.endpoint || "(no endpoint)"}. Verify the endpoint + token.`,
       },
       { status: 502 }
     );

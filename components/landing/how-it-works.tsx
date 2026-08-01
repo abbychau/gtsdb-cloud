@@ -6,7 +6,7 @@ const STEPS = [
     step: "01",
     title: "Create an instance",
     description:
-      "Spin up a managed GTSDB instance in seconds. Connect it to your own GTSDB server or explore with the built-in sandbox.",
+      "Spin up a managed GTSDB instance in seconds. Each one is an isolated tenant on the shared GTSDB server — connect over REST or TCP right away.",
   },
   {
     icon: Send,

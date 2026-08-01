@@ -71,7 +71,6 @@ export function ConnectionPanel({
 
   const [reveal, setReveal] = React.useState(false);
   const [rotating, setRotating] = React.useState(false);
-  const provisioned = Boolean(instance.namespace);
 
   async function handleRotate() {
     setRotating(true);
@@ -174,9 +173,9 @@ export function ConnectionPanel({
               <AlertDialogHeader>
                 <AlertDialogTitle>Rotate connection credential?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  {provisioned
-                    ? "GTSDB will reset your tenant token — the current one is immediately invalidated and clients using it will be disconnected."
-                    : "A new sandbox credential will be generated."}
+                  GTSDB will reset your tenant token — the current one is
+                  immediately invalidated and clients using it will be
+                  disconnected.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -202,11 +201,7 @@ export function ConnectionPanel({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <InfoRow label="Namespace" value={instance.namespace || "sandbox"} />
-          <InfoRow
-            label="Sandbox fallback"
-            value={instance.simulate ? "enabled" : "disabled"}
-          />
+          <InfoRow label="Namespace" value={instance.namespace || "—"} />
         </CardContent>
       </Card>
     </div>

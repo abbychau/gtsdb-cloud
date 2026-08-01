@@ -76,9 +76,9 @@ export default function DocsPage() {
               </h2>
               <p className="mt-2 text-muted-foreground">
                 Sign in, then head to the dashboard and hit{" "}
-                <b>New instance</b>. Every instance ships with a sandbox
-                simulator so you can start querying immediately — or point it at
-                your own GTSDB server (single binary or Docker).
+                <b>New instance</b>. Every instance is an isolated tenant on
+                the shared GTSDB server, so you can start querying immediately —
+                or point it at your own GTSDB server (single binary or Docker).
               </p>
               <div className="mt-4">
                 <Button asChild>

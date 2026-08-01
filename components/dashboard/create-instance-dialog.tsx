@@ -27,7 +27,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const REGIONS: Array<{ value: InstanceRegion; label: string }> = [
@@ -56,7 +55,6 @@ export function CreateInstanceDialog({
 
   const [name, setName] = React.useState("");
   const [region, setRegion] = React.useState<InstanceRegion>("auto");
-  const [simulate, setSimulate] = React.useState(true);
 
   const planDef = getPlan(plan);
   const atLimit = !canCreateInstance(plan, instanceCount);
@@ -66,7 +64,7 @@ export function CreateInstanceDialog({
     setError(null);
     setBusy(true);
     try {
-      const inst = await createInstance({ name, region, simulate }, authToken || "");
+      const inst = await createInstance({ name, region }, authToken || "");
       toast.success(`Instance "${inst.name}" created`, {
         description: `Connection: ${inst.connectionString}`,
       });
@@ -94,7 +92,7 @@ export function CreateInstanceDialog({
           <DialogTitle>Create a new instance</DialogTitle>
           <DialogDescription>
             The platform auto-generates a connection string and credential —
-            nothing to configure. Sandbox simulation is enabled by default.
+            nothing to configure.
           </DialogDescription>
         </DialogHeader>
 
@@ -135,24 +133,6 @@ export function CreateInstanceDialog({
                 ))}
               </SelectContent>
             </Select>
-          </div>
-
-          <div className="flex items-center justify-between rounded-lg border p-3">
-            <div>
-              <Label htmlFor="simulate" className="text-sm font-medium">
-                Sandbox simulation
-              </Label>
-              <p className="text-xs text-muted-foreground">
-                Instances are provisioned as isolated tenants on the shared
-                GTSDB server. Sandbox is only a fallback when that server is
-                unreachable.
-              </p>
-            </div>
-            <Switch
-              id="simulate"
-              checked={simulate}
-              onCheckedChange={setSimulate}
-            />
           </div>
 
           {error && (

@@ -46,12 +46,11 @@ export const PATCH = handle(async (req: NextRequest, { params }: { params: { id:
     patch.endpoint = (body.endpoint || "").trim();
     patch.serverInfo = null;
   }
-  if (body.simulate !== undefined) patch.simulate = body.simulate;
 
   // Re-run the health check when the endpoint changed so the status is fresh.
   if (body.endpoint !== undefined || body.status !== undefined) {
     const healthy = await checkHealth(patch.endpoint ?? inst.endpoint);
-    patch.status = healthy ? "active" : patch.simulate ?? inst.simulate ? "provisioning" : "offline";
+    patch.status = healthy ? "active" : "offline";
     if (healthy) patch.lastHealthyAt = new Date().toISOString();
     else patch.lastHealthyAt = null;
   }

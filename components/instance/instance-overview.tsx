@@ -153,7 +153,6 @@ export function InstanceOverview({
             <div className="mb-2 flex items-center gap-2">
               <ConnectionStatus status={status} />
               <PlanBadge plan={instance.plan} />
-              {instance.simulate && <Badge variant="secondary">sandbox</Badge>}
             </div>
             <InfoRow label="HTTP endpoint" value={instance.connectionString} />
             <InfoRow label="TCP endpoint" value={instance.tcpConnectionString} />
