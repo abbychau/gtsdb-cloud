@@ -17,6 +17,7 @@ import {
   Loader2,
   MemoryStick,
   RefreshCw,
+  RotateCcw,
   Server,
   ShieldCheck,
   Trash2,
@@ -33,6 +34,7 @@ import {
   createBackup,
   deleteAdminInstance,
   deleteAdminUser,
+  deleteBackup,
   downloadBackup,
   getAdminMonitor,
   getAdminStats,
@@ -41,6 +43,7 @@ import {
   listAdminInstances,
   listAdminUsers,
   listBackups,
+  restoreBackup,
   setAdminUserPlan,
   updateAdminInstance,
   type AdminInstance,
@@ -191,6 +194,7 @@ export default function AdminPage() {
   const [monitor, setMonitor] = React.useState<AdminMonitor | null>(null);
   const [backups, setBackups] = React.useState<BackupInfo[]>([]);
   const [backingUp, setBackingUp] = React.useState(false);
+  const [restoring, setRestoring] = React.useState<string | null>(null);
   const [stripeEvents, setStripeEvents] = React.useState<StripeEvent[]>([]);
   const [stripeCustomers, setStripeCustomers] = React.useState<StripeCustomerRow[]>([]);
   const [stripeEnabled, setStripeEnabled] = React.useState(false);
@@ -338,6 +342,28 @@ export default function AdminPage() {
       URL.revokeObjectURL(url);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to download backup");
+    }
+  }
+
+  async function handleRestore(name: string) {
+    setRestoring(name);
+    try {
+      await restoreBackup(name, token);
+      toast.success(`Restored from ${name}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to restore backup");
+    } finally {
+      setRestoring(null);
+    }
+  }
+
+  async function handleDeleteBackup(name: string) {
+    try {
+      await deleteBackup(name, token);
+      setBackups((prev) => prev.filter((b) => b.name !== name));
+      toast.success("Backup deleted");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete backup");
     }
   }
 
@@ -835,15 +861,69 @@ export default function AdminPage() {
                           {new Date(b.createdAt).toLocaleString()}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={() => handleDownload(b.name)}
-                            aria-label="Download backup"
-                          >
-                            <Download className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={() => handleDownload(b.name)}
+                              aria-label="Download backup"
+                              title="Download"
+                            >
+                              <Download className="h-4 w-4" />
+                            </Button>
+
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-muted-foreground hover:text-amber-500"
+                                  aria-label="Restore backup"
+                                  title="Restore"
+                                  disabled={restoring !== null}
+                                >
+                                  {restoring === b.name ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <RotateCcw className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Restore from this backup?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    This stops the managed GTSDB, overwrites the platform
+                                    database and every timeseries data file with the{" "}
+                                    <span className="font-mono">{b.name}</span> snapshot,
+                                    then restarts GTSDB. Data written after this backup will
+                                    be lost. This cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel disabled={restoring !== null}>
+                                    Cancel
+                                  </AlertDialogCancel>
+                                  <AlertDialogAction
+                                    className="bg-amber-600 text-white hover:bg-amber-700"
+                                    disabled={restoring !== null}
+                                    onClick={async () => {
+                                      await handleRestore(b.name);
+                                    }}
+                                  >
+                                    Restore
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+
+                            <DeleteButton
+                              title="Delete backup"
+                              description={`Permanently delete ${b.name}? This cannot be undone.`}
+                              onConfirm={() => handleDeleteBackup(b.name)}
+                            />
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))

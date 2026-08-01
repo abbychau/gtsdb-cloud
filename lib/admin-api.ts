@@ -133,6 +133,32 @@ export async function downloadBackup(
   return res.blob();
 }
 
+export interface RestoreResult {
+  name: string;
+  restoredAt: string;
+  gtsdbRestarted: boolean;
+}
+
+export async function deleteBackup(
+  name: string,
+  token: string
+): Promise<{ ok: boolean }> {
+  return request<{ ok: boolean }>(
+    `/api/admin/backups/${encodeURIComponent(name)}`,
+    { method: "DELETE", token }
+  );
+}
+
+export async function restoreBackup(
+  name: string,
+  token: string
+): Promise<RestoreResult> {
+  return request<RestoreResult>(
+    `/api/admin/backups/${encodeURIComponent(name)}/restore`,
+    { method: "POST", token }
+  );
+}
+
 // --- Users ---------------------------------------------------------------
 
 export async function listAdminUsers(token: string): Promise<AdminUser[]> {

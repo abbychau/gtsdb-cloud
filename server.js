@@ -9,9 +9,9 @@
  *   node server.js --dev      # development (HMR, source maps)
  *   node server.js            # production (requires `npm run build` first)
  *
- * Ports: PORT env or 13000. GTSDB management can be disabled with
- * GTSDB_MANAGED=false, and it won't double-start if GTSDB is already
- * listening on :5556.
+ * Ports: PORT env, else 13000 in production and 12999 in development.
+ * GTSDB management can be disabled with GTSDB_MANAGED=false, and it won't
+ * double-start if GTSDB is already listening on :5556.
  */
 const { createServer } = require("http");
 const path = require("path");
@@ -21,7 +21,7 @@ const { migrateMissingTenants } = require(path.join(__dirname, "lib", "tenant-mi
 
 const dev = process.argv.includes("--dev") || process.env.NODE_ENV === "development";
 const hostname = "0.0.0.0";
-const port = parseInt(process.env.PORT, 10) || 13000;
+const port = parseInt(process.env.PORT, 10) || (dev ? 12999 : 13000);
 
 const app = next({ dev, hostname, port, dir: __dirname });
 const handle = app.getRequestHandler();

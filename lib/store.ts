@@ -166,6 +166,37 @@ export function checkpointDb(): void {
   if (db) db.pragma("wal_checkpoint(TRUNCATE)");
 }
 
+/** Absolute path to the platform SQLite file. */
+export function platformDbPath(): string {
+  return DB_FILE;
+}
+
+/** Close the SQLite connection and drop in-memory caches (used by restore). */
+export function closeStore(): void {
+  if (db) {
+    try {
+      db.pragma("wal_checkpoint(TRUNCATE)");
+    } catch {
+      // ignore
+    }
+    try {
+      db.close();
+    } catch {
+      // ignore
+    }
+  }
+  db = null;
+  cache = null;
+  writeQueue = Promise.resolve();
+}
+
+/** Reopen the store from disk and rebuild caches (used by restore). */
+export function reloadStore(): void {
+  closeStore();
+  getDb();
+  loadStore();
+}
+
 // --- Users -----------------------------------------------------------------
 
 export async function getUser(uid: string): Promise<PlatformUser | null> {

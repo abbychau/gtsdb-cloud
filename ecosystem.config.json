@@ -1,0 +1,25 @@
+{
+  "apps": [
+    {
+      "name": "gtsdb",
+      "script": "C:/Repos/gtsdb/cloud/bin/gtsdb-dev.exe",
+      "args": ["gtsdb.local.ini"],
+      "cwd": "C:/Repos/gtsdb",
+      "watch": false,
+      "autorestart": true
+    },
+    {
+      "name": "gtsdb-cloud",
+      "script": "C:/Program Files/nodejs/node.exe",
+      "args": ["server.js"],
+      "cwd": "C:/Repos/gtsdb/cloud",
+      "env": {
+        "NODE_ENV": "production",
+        "GTSDB_MANAGED": "false",
+        "PORT": "13000"
+      },
+      "watch": false,
+      "autorestart": true
+    }
+  ]
+}

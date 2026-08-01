@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { promises as fs } from "fs";
 import { handle, HttpError } from "@/lib/route-utils";
 import { requireAdmin } from "@/lib/admin-server";
-import { resolveBackupPath } from "@/lib/backup";
+import { deleteBackup, resolveBackupPath } from "@/lib/backup";
 
 export const runtime = "nodejs";
 
@@ -22,5 +22,13 @@ export const GET = handle(
         "Cache-Control": "no-store",
       },
     });
+  }
+);
+
+export const DELETE = handle(
+  async (req: NextRequest, { params }: { params: { name: string } }) => {
+    await requireAdmin(req);
+    await deleteBackup(params.name);
+    return NextResponse.json({ ok: true });
   }
 );
