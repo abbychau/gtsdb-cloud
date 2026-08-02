@@ -3,11 +3,16 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/layout/theme-provider";
 import { AuthProvider } from "@/lib/auth-context";
 import { Toaster } from "@/components/ui/sonner";
+import favicon from "./favicon.png";
+
 
 export const metadata: Metadata = {
   title: {
     default: "GTSDB Cloud — Managed Timeseries Database",
     template: "%s · GTSDB Cloud",
+  },
+  icons: {
+    icon: favicon.src,
   },
   description:
     "GTSDB Cloud is a freemium managed timeseries database platform built on the MIT-licensed GTSDB engine. Sub-millisecond reads, WAL-first storage, and a beautiful cloud console.",
